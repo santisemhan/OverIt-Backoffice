@@ -112,3 +112,9 @@ export interface Paged<T> {
   totalCount: number;
   totalPages: number;
 }
+
+/** GET inbox/counts: tab and chip counters in one request. */
+export interface InboxCounts {
+  byStatus: Record<InboxStatus | "all", number>;
+  byType: Record<InboxStatus | "all", Record<InboxType, number>>;
+}

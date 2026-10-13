@@ -3,6 +3,7 @@ import { api } from "@/lib/api";
 import type { RangeId } from "@/lib/filters";
 import type {
   AuditEntry,
+  InboxCounts,
   InboxItem,
   InboxStatus,
   InboxType,
@@ -94,17 +95,26 @@ export const inboxQuery = (p: InboxParams) =>
   });
 export const useInbox = (p: InboxParams) => useQuery(inboxQuery(p));
 
-/** Total for a status and/or type (pageSize=1), for tab and chip counters. */
-export const inboxTotalQuery = (status: InboxStatus | null, type: InboxType | null) =>
+/** Every tab and chip counter of the inbox, in one request. */
+export const inboxCountsQuery = () =>
   queryOptions({
-    queryKey: ["moderacion", "inbox", "total", status, type],
-    queryFn: ({ signal }) =>
-      api<Paged<InboxItem>>(`${BASE}/inbox`, { query: { status, type, page: 1, pageSize: 1 }, signal }).then(
-        (r) => r.totalCount,
-      ),
+    queryKey: ["moderacion", "inbox", "counts"],
+    queryFn: ({ signal }) => api<InboxCounts>(`${BASE}/inbox/counts`, { signal }),
   });
-export const useInboxTotal = (status: InboxStatus | null, type: InboxType | null) =>
-  useQuery(inboxTotalQuery(status, type));
+export const useInboxCounts = () => useQuery(inboxCountsQuery());
+
+/** Comments under one post (removed ones included), for the thread under a Comunidad card. */
+export const postCommentsQuery = (postId: string) =>
+  queryOptions({
+    queryKey: ["moderacion", "comments", "post", postId],
+    queryFn: ({ signal }) =>
+      api<Paged<ModerationComment>>(`${BASE}/moderation/comments`, {
+        query: { postId, status: "any", page: 1, pageSize: 100 },
+        signal,
+      }),
+  });
+export const usePostComments = (postId: string, enabled: boolean) =>
+  useQuery({ ...postCommentsQuery(postId), enabled });
 
 export interface AuditParams {
   search: string;

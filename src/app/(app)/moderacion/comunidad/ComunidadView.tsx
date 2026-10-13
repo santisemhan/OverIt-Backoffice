@@ -21,6 +21,7 @@ import {
   useModerationComments,
   useModerationPosts,
   useModerationTotal,
+  usePostComments,
   type ModerationListParams,
 } from "@/lib/moderacion/queries";
 import type { ModerationComment, ModerationKind, ModerationPost, ModerationStatus } from "@/lib/moderacion/types";
@@ -290,6 +291,7 @@ function ItemCard(
 ) {
   const { kind, item, mod, now } = props;
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const removed = !!item.removedAt;
   const pending = !removed && item.openReports > 0;
   const target = { kind, id: item.id };
@@ -435,12 +437,24 @@ function ItemCard(
           <Icon.heart size={16} />
           {n(item.likes)}
         </span>
-        {kind === "posts" && (
-          <span className="inline-flex items-center gap-1.5">
-            <Icon.chat size={16} />
-            {props.item.comments ? plural(props.item.comments, "comentario", "comentarios") : "Sin comentarios"}
-          </span>
-        )}
+        {kind === "posts" &&
+          (props.item.comments ? (
+            <button
+              type="button"
+              aria-expanded={open}
+              onClick={() => setOpen((o) => !o)}
+              className="inline-flex press items-center gap-1.5 rounded-[8px] hover:text-purple"
+            >
+              <Icon.chat size={16} />
+              {plural(props.item.comments, "comentario", "comentarios")}
+              <Icon.chevronDown size={14} className={cx("transition-transform", open && "rotate-180")} />
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <Icon.chat size={16} />
+              Sin comentarios
+            </span>
+          ))}
         {item.reports > 0 && !pending && (
           <span className="inline-flex items-center gap-1.5">
             <Icon.flag size={16} />
@@ -448,6 +462,68 @@ function ItemCard(
           </span>
         )}
       </div>
+      {kind === "posts" && open && <PostThread postId={item.id} mod={mod} now={now} />}
     </article>
+  );
+}
+
+/* Every comment of a post (removed ones too), oldest first, with remove / restore. */
+function PostThread({ postId, mod, now }: { postId: string; mod: Mod; now: number }) {
+  const q = usePostComments(postId, true);
+  const comments = [...(q.data?.items ?? [])].reverse();
+  return (
+    <div className="mt-3 rounded-[14px] bg-bo-soft p-3 shadow-[inset_0_0_0_1px_#EFEDE7]">
+      {q.isPending ? (
+        <Skeleton className="h-[48px] rounded-[10px]" />
+      ) : q.isError ? (
+        <p className="text-[13px] font-medium text-bad">{describeError(q.error)}</p>
+      ) : comments.length ? (
+        <ul className="divide-y divide-bo-line">
+          {comments.map((c) => {
+            const removed = !!c.removedAt;
+            const target = { kind: "comments" as const, id: c.id };
+            return (
+              <li key={c.id} className="flex items-start gap-2.5 py-2.5">
+                <UserAvatar id={c.author.id} size={26} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[12.5px] font-medium text-ink-60">
+                    <Link href={`/trackeo/usuarios/${c.author.id}`} className="font-bold text-ink hover:text-purple">
+                      {displayName(c.author)}
+                    </Link>
+                    {` · ${ago(Date.parse(c.createdAt), now)}`}
+                    {c.openReports > 0 && !removed && ` · ${plural(c.openReports, "reporte", "reportes")}`}
+                  </p>
+                  <p
+                    className={cx(
+                      "mt-0.5 text-[14px] leading-[1.45] font-medium whitespace-pre-line text-ink",
+                      removed && "line-through decoration-ink/30 opacity-70",
+                    )}
+                  >
+                    {c.text}
+                  </p>
+                </div>
+                {removed ? (
+                  <Button size="sm" icon={<Icon.undo size={14} />} onClick={() => mod.restore(target)}>
+                    Restaurar
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="dangerSoft"
+                    icon={<Icon.trash size={14} />}
+                    onClick={() => mod.askRemove(target)}
+                    aria-label="Eliminar comentario"
+                  >
+                    <span className="hidden sm:inline">Eliminar</span>
+                  </Button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-[13px] font-medium text-ink-60">Sin comentarios.</p>
+      )}
+    </div>
   );
 }

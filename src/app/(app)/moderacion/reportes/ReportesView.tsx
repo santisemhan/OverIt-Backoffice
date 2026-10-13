@@ -18,7 +18,7 @@ import { describeError } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { ago, dateTime, n, plural } from "@/lib/format";
 import { useSetInboxStatus } from "@/lib/moderacion/mutations";
-import { useInbox, useInboxTotal } from "@/lib/moderacion/queries";
+import { useInbox, useInboxCounts } from "@/lib/moderacion/queries";
 import type { InboxItem, InboxStatus, InboxType } from "@/lib/moderacion/types";
 import { TONE } from "@/lib/tones";
 import { reasonLabel, STATUS, TYPE, TYPES } from "../_shared/labels";
@@ -73,20 +73,10 @@ export function ReportesView() {
 
   const st = status === "all" ? null : status;
   const inbox = useInbox({ status: st, type: type === "all" ? null : type, search, page, pageSize: PAGE_SIZE });
-  const cNew = useInboxTotal("New", null);
-  const cRev = useInboxTotal("InReview", null);
-  const cRes = useInboxTotal("Resolved", null);
-  const cAll = useInboxTotal(null, null);
-  /* One small count per type for the current status tab (types with nothing are hidden). */
-  const typeCounts = {
-    report: useInboxTotal(st, "report").data,
-    bug: useInboxTotal(st, "bug").data,
-    suggestion: useInboxTotal(st, "suggestion").data,
-    other: useInboxTotal(st, "other").data,
-    subscriptionCancellation: useInboxTotal(st, "subscriptionCancellation").data,
-    accountDeletion: useInboxTotal(st, "accountDeletion").data,
-  } satisfies Record<InboxType, number | undefined>;
-  const statusTotal = { New: cNew.data, InReview: cRev.data, Resolved: cRes.data, all: cAll.data }[status];
+  const counts = useInboxCounts().data;
+  /* Per type for the current status tab (types with nothing are hidden). */
+  const typeCounts: Partial<Record<InboxType, number>> = counts?.byType[status] ?? {};
+  const statusTotal = counts?.byStatus[status];
 
   const items = inbox.data?.items ?? [];
   /* On desktop the first item is shown when nothing is picked. */
@@ -108,10 +98,10 @@ export function ReportesView() {
             reset();
           }}
           items={[
-            { id: "New", label: "Nuevos", count: cNew.data },
-            { id: "InReview", label: "En revisión", count: cRev.data },
-            { id: "Resolved", label: "Resueltos", count: cRes.data },
-            { id: "all", label: "Todos", count: cAll.data },
+            { id: "New", label: "Nuevos", count: counts?.byStatus.New },
+            { id: "InReview", label: "En revisión", count: counts?.byStatus.InReview },
+            { id: "Resolved", label: "Resueltos", count: counts?.byStatus.Resolved },
+            { id: "all", label: "Todos", count: counts?.byStatus.all },
           ]}
         />
       </div>
