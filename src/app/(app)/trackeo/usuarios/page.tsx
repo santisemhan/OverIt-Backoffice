@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/shell/SectionPlaceholder";
+import { Usuarios } from "./Usuarios";
 
 export const metadata: Metadata = { title: "Usuarios" };
 
 export default function Page() {
-  return <SectionPlaceholder area="trackeo" section="usuarios" />;
+  return <Usuarios />;
 }
