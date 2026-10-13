@@ -1,0 +1,227 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens of the Over It Back Office (light theme only).
+ * Brand colours come from the Over It manual; `bo-*`, the state colours and the chart series are specific to the
+ * back office. Fonts are loaded with next/font/local in src/app/layout.tsx and exposed as CSS variables.
+ */
+
+@theme {
+  /* Brand */
+  --color-lime: #e9ff70;
+  --color-lime-60: #f2ffa9;
+  --color-lime-20: #fbffe2;
+  --color-mint: #dff2d8;
+  --color-mint-60: #ecf7e8;
+  --color-cream: #fff8e7;
+  --color-cream-2: #fdf3dc;
+  --color-peach: #fba078;
+  --color-peach-60: #fdc6ae;
+  --color-peach-20: #fee9e0;
+  --color-purple: #5e5be2;
+  --color-purple-70: #7e7ce8;
+  --color-purple-60: #9e9dee;
+  --color-purple-20: #dfdef9;
+  --color-purple-10: #efeefc;
+  --color-ink: #242323;
+  --color-ink-70: #504f4f;
+  --color-ink-60: #6b6a6a;
+  --color-ink-40: #a19f9f;
+  --color-ninety: #fe5858;
+
+  /* Back office surfaces */
+  --color-bo-bg: #f5f3ee;
+  --color-bo-line: #eae7e0;
+  --color-bo-soft: #faf9f6;
+
+  /* States (always paired with text, colour never goes alone) */
+  --color-ok: #2f6b28;
+  --color-ok-bg: #dff2d8;
+  --color-warn: #a8461c;
+  --color-warn-bg: #fee9e0;
+  --color-bad: #b42f2f;
+  --color-bad-bg: #fde3e3;
+  --color-info: #4b48c9;
+
+  /* Chart series, colour-blind validated, always in this order: violet, orange, cyan */
+  --color-c1: #5e5be2;
+  --color-c2: #e07040;
+  --color-c3: #14a3b8;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --shadow-card: 0 1px 2px rgba(36, 35, 35, 0.04), 0 4px 14px rgba(36, 35, 35, 0.05);
+  --shadow-card-lift: 0 2px 4px rgba(36, 35, 35, 0.05), 0 14px 32px rgba(36, 35, 35, 0.12);
+  --shadow-button: 0 4px 12px rgba(94, 91, 226, 0.28);
+  --shadow-float: 0 18px 40px rgba(36, 35, 35, 0.16);
+  --shadow-popover: 0 0 0 1px rgba(36, 35, 35, 0.06), 0 14px 36px rgba(36, 35, 35, 0.16);
+
+  --radius-card: 20px;
+  --radius-control: 12px;
+}
+
+@theme inline {
+  --font-sans: var(--font-satoshi), -apple-system, system-ui, sans-serif;
+  --font-display: var(--font-isidora), var(--font-satoshi), sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-bo-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:disabled {
+    cursor: default;
+  }
+
+  ::selection {
+    background: rgba(94, 91, 226, 0.2);
+    color: var(--color-ink);
+  }
+  input,
+  textarea,
+  select {
+    caret-color: var(--color-purple);
+    accent-color: var(--color-purple);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-purple);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.on-violet :focus-visible {
+  outline-color: var(--color-lime);
+}
+/* Fields and listboxes draw their own focus ring */
+input:focus-visible,
+textarea:focus-visible,
+[role="listbox"]:focus-visible {
+  outline: none;
+}
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Thin, brand-tinted scrollbars (desktop) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 35, 35, 0.18) transparent;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Press feedback for everything tappable */
+@utility press {
+  transition:
+    transform 140ms var(--ease-out),
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+/* Loading: a soft pulse instead of spinners in the middle of content */
+@keyframes bo-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@utility skeleton {
+  background: #ebe8e1;
+  border-radius: 10px;
+  animation: bo-pulse 1.4s ease-in-out infinite;
+}
+
+/* Charts: bars grow from the base and lines draw once, on appear */
+@keyframes bo-grow-y {
+  from {
+    transform: scaleY(0.02);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes bo-grow-x {
+  from {
+    transform: scaleX(0.02);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes bo-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility grow-y {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: bo-grow-y 520ms var(--ease-out) both;
+}
+@utility grow-x {
+  transform-origin: 0 50%;
+  animation: bo-grow-x 560ms var(--ease-out) both;
+}
+@utility fade-in {
+  animation: bo-fade 360ms var(--ease-out) both;
+}
+
+/* A row you jumped to flashes lime for a moment */
+@keyframes bo-flash {
+  0%,
+  40% {
+    background-color: rgba(233, 255, 112, 0.6);
+  }
+  100% {
+    background-color: rgba(233, 255, 112, 0);
+  }
+}
+@utility flash {
+  animation: bo-flash 1.8s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grow-y,
+  .grow-x,
+  .fade-in,
+  .flash,
+  .skeleton {
+    animation: none;
+  }
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+}
