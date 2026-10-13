@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/shell/SectionPlaceholder";
+import { NinetyView } from "./NinetyView";
 
 export const metadata: Metadata = { title: "Ninety" };
 
 export default function Page() {
-  return <SectionPlaceholder area="moderacion" section="ninety" />;
+  return <NinetyView />;
 }

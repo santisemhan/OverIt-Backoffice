@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/shell/SectionPlaceholder";
+import { ComunidadView } from "./ComunidadView";
 
 export const metadata: Metadata = { title: "Comunidad" };
 
 export default function Page() {
-  return <SectionPlaceholder area="moderacion" section="comunidad" />;
+  return <ComunidadView />;
 }

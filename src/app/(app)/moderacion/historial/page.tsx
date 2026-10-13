@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/shell/SectionPlaceholder";
+import { HistorialView } from "./HistorialView";
 
 export const metadata: Metadata = { title: "Historial" };
 
 export default function Page() {
-  return <SectionPlaceholder area="moderacion" section="historial" />;
+  return <HistorialView />;
 }

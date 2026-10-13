@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/shell/SectionPlaceholder";
+import { ReportesView } from "./ReportesView";
 
 export const metadata: Metadata = { title: "Reportes y feedback" };
 
 export default function Page() {
-  return <SectionPlaceholder area="moderacion" section="reportes" />;
+  return <ReportesView />;
 }
