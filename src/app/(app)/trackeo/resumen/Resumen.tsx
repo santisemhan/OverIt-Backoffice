@@ -116,18 +116,32 @@ export function Resumen() {
             <Panel
               tone="mint"
               title="Ingreso mensual"
-              info="Estimado con los precios configurados en el servidor; no incluye comisiones de las tiendas."
+              info="Lo que suman por mes las suscripciones que renuevan, según el último cobro de cada una (en USD, estimado por RevenueCat). Cobrado: pagos del período, sin reintegros ni pruebas (sandbox)."
             >
               {d.mrrEstimate ? (
-                <p className="text-[36px] leading-none font-black tracking-[-0.035em] text-[#1F4A1A]">
-                  {money(d.mrrEstimate.amount, d.mrrEstimate.currency)}
-                </p>
+                <>
+                  <p className="text-[36px] leading-none font-black tracking-[-0.035em] text-[#1F4A1A]">
+                    {money(d.mrrEstimate.amount, d.mrrEstimate.currency)}
+                  </p>
+                  <p className="mt-1.5 text-[12.5px] font-medium text-[#2F6B28]">
+                    {money(d.mrrEstimate.netAmount, d.mrrEstimate.currency)} después de impuestos y comisiones
+                  </p>
+                </>
               ) : (
-                <p className="text-[14px] font-bold text-[#2F6B28]">
-                  Sin estimación: faltan los precios por producto en el servidor.
-                </p>
+                <p className="text-[14px] font-bold text-[#2F6B28]">Ninguna suscripción renueva todavía.</p>
               )}
               <dl className="mt-5 space-y-2 rounded-[14px] bg-white/70 p-3.5 text-[13.5px] font-medium text-[#1F4A1A]">
+                <Row label="Cobrado en el período" value={money(d.collected.grossUsd, "USD")} />
+                <Row label="Neto (sin impuestos ni comisiones)" value={money(d.collected.netUsd, "USD")} />
+                <Row label="Cobros" value={n(d.collected.payments)} />
+                {d.collected.refunds > 0 && (
+                  <Row
+                    label="Reintegrados"
+                    value={`${n(d.collected.refunds)} · ${money(d.collected.refundedUsd, "USD")}`}
+                  />
+                )}
+              </dl>
+              <dl className="mt-3 space-y-2 rounded-[14px] bg-white/70 p-3.5 text-[13.5px] font-medium text-[#1F4A1A]">
                 <Row label="Suscripciones activas" value={n(d.subscriptions.active)} />
                 <Row label="Renuevan" value={n(d.subscriptions.renewing)} />
                 <Row label="Cancelaron, con acceso" value={n(d.subscriptions.canceledWithAccess)} />
@@ -155,7 +169,7 @@ export function Resumen() {
                   label: GENDER_LABEL[g.key] ?? g.key,
                   value: g.users,
                   pct: pct(g.users, d.funnel.downloads),
-                  hint: `${n(g.subscribed)} se suscribieron`,
+                  hint: `${n(g.subscribed)} ${g.subscribed === 1 ? "se suscribió" : "se suscribieron"}`,
                 }))}
               />
             </Panel>
@@ -167,7 +181,7 @@ export function Resumen() {
                   label: AGE_LABEL[g.key] ?? g.key,
                   value: g.users,
                   pct: pct(g.users, d.funnel.downloads),
-                  hint: `${n(g.subscribed)} se suscribieron`,
+                  hint: `${n(g.subscribed)} ${g.subscribed === 1 ? "se suscribió" : "se suscribieron"}`,
                 }))}
               />
             </Panel>

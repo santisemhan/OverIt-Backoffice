@@ -93,6 +93,7 @@ export interface UserDetail {
   };
   hasAccess: boolean;
   grants: UserGrant[];
+  payments: UserPayment[];
   plan: null | {
     startedAt: string;
     finishDate: string;
@@ -134,10 +135,39 @@ export interface UserDetail {
 
 /* ─────────── Metrics ─────────── */
 
+/** MRR in USD from each renewing subscription's last RevenueCat charge, normalized to a month. */
 export interface MrrEstimate {
   amount: number;
+  netAmount: number;
   currency: string;
+  /** Renewing subscriptions with no known charge yet (left out of the amount). */
+  unpriced: number;
   byProduct: { productId: string; renewing: number; monthlyPrice: number | null }[];
+}
+
+/** Charges in the range (production only, refunds left out of the totals). */
+export interface Collected {
+  grossUsd: number;
+  netUsd: number;
+  payments: number;
+  refundedUsd: number;
+  refunds: number;
+  byCurrency: { currency: string; amount: number; amountUsd: number; payments: number }[];
+}
+
+export interface UserPayment {
+  paymentId: string;
+  eventType: "INITIAL_PURCHASE" | "RENEWAL" | "NON_RENEWING_PURCHASE";
+  productId: string | null;
+  store: string | null;
+  periodType: string | null;
+  environment: string | null;
+  amountLocal: number;
+  currency: string;
+  amountUsd: number;
+  netUsd: number;
+  purchasedAt: string;
+  refundedAt: string | null;
 }
 
 export type AgeKey = "<18" | "18-24" | "25-34" | "35-44" | "45-54" | "55+" | "UNKNOWN";
@@ -150,6 +180,7 @@ export interface Overview {
   perDay: { date: string; downloads: number; subscribed: number }[];
   subscriptions: { active: number; renewing: number; canceledWithAccess: number };
   mrrEstimate: MrrEstimate | null;
+  collected: Collected;
   breakdowns: {
     gender: { key: Gender | "UNKNOWN"; users: number; subscribed: number }[];
     age: { key: AgeKey; users: number; subscribed: number }[];
@@ -170,6 +201,7 @@ export interface SubscriptionsMetrics {
     activeGrants: number;
   };
   mrrEstimate: MrrEstimate | null;
+  collected: Collected;
   byProduct: { productId: string; active: number; renewing: number }[];
   perDay: { date: string; new: number; canceled: number }[];
   cancelReasons: {

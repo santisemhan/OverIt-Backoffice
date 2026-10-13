@@ -50,6 +50,37 @@ not trusted by your browser, either run `dotnet dev-certs https --trust` or poin
   to `/login?next=…`. Any API `401` clears the session, which sends you back to login. The API authorises every
   request on its own; the guard is a convenience, not the security boundary.
 
+## Local test data (local only)
+
+To try every screen against a throwaway database, the backend repo ships
+`scripts/local-seed/seed-local-only.mjs`. It writes fake users (onboarding, subscriptions in every state, a
+complimentary grant), community posts/comments/reports, feedback, Ninety message counts, assigned challenges, content in
+the 5 collections and, optionally, RevenueCat charges in several currencies (plus a refund and a sandbox purchase).
+**Never run it against a shared, staging or production database.**
+
+```bash
+# 1. Throwaway Postgres
+docker run -d --name overit-local-pg -e POSTGRES_USER=overit -e POSTGRES_PASSWORD=local_only \
+  -e POSTGRES_DB=OverItLocal -p 55432:5432 postgres:16
+
+# 2. Backend (from OverIt-Backend): migrations apply on start
+ConnectionStrings__DefaultConnection="Host=localhost;Port=55432;Database=OverItLocal;Username=overit;Password=local_only;" \
+RevenueCat__WebhookSharedSecret=local-webhook-secret ASPNETCORE_ENVIRONMENT=Local \
+dotnet run --project src/OverIt.API --no-launch-profile --urls http://localhost:5001
+
+# 3. Seed (from OverIt-Backend, with the API running)
+SEED_PG_CONTAINER=overit-local-pg SEED_PG_DB=OverItLocal SEED_API_URL=http://localhost:5001 \
+SEED_WEBHOOK_SECRET=local-webhook-secret node scripts/local-seed/seed-local-only.mjs
+
+# 4. Back office
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5001 npm run dev
+```
+
+Log in as `admin@local.test`. The admin password is generated on the first run and saved to
+`scripts/local-seed/.admin-password.local` in the backend repo (gitignored), or set your own with
+`SEED_ADMIN_PASSWORD`. The script expects an empty database: to start over, drop the container
+(`docker rm -f overit-local-pg`) and repeat.
+
 ## Deploy (Vercel)
 
 1. Import the repository in Vercel (framework preset **Next.js**, defaults for build and output).

@@ -1,8 +1,9 @@
 "use client";
 
+import { useDebounced } from "@/lib/useDebounced";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useDeferredValue, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { FilterBar } from "@/components/shell/FilterBar";
 import { HScroll } from "@/components/ui/HScroll";
 import { Panel } from "@/components/ui/Card";
@@ -62,7 +63,7 @@ export function Suscripciones() {
   const asked = params.get("ver") as View | null;
   const view: View = asked && VIEWS.includes(asked) ? asked : "renews";
   const [q, setQ] = useState("");
-  const search = useDeferredValue(q);
+  const search = useDebounced(q);
   const [page, setPage] = useState(1);
 
   const show = (v: View) => {
@@ -172,24 +173,51 @@ export function Suscripciones() {
         <Panel
           tone="mint"
           title="Ingreso mensual"
-          info="Lo que renueva hoy, llevado a un mes con los precios configurados en el servidor. Antes de comisiones e impuestos."
+          info="Lo que renueva hoy, llevado a un mes con el último cobro de cada suscripción (USD estimado por RevenueCat; los precios cambian por país). Cobrado: pagos del período, sin reintegros ni sandbox."
           className="relative h-full overflow-hidden"
         >
           <Figure kind="leaves" color="#CDEAC2" w={130} h={100} />
           {d.mrrEstimate ? (
-            <p className="relative text-[36px] leading-none font-black tracking-[-0.035em] text-[#1F4A1A]">
-              {money(d.mrrEstimate.amount, d.mrrEstimate.currency)}
-            </p>
+            <>
+              <p className="relative text-[36px] leading-none font-black tracking-[-0.035em] text-[#1F4A1A]">
+                {money(d.mrrEstimate.amount, d.mrrEstimate.currency)}
+              </p>
+              <p className="relative mt-1.5 text-[12.5px] font-medium text-[#2F6B28]">
+                {money(d.mrrEstimate.netAmount, d.mrrEstimate.currency)} neto
+                {d.mrrEstimate.unpriced > 0 &&
+                  ` · ${plural(d.mrrEstimate.unpriced, "sin cobro registrado", "sin cobro registrado")}`}
+              </p>
+            </>
           ) : (
-            <p className="relative text-[15px] font-bold text-[#1F4A1A]">
-              Sin estimación: faltan los precios por producto en el servidor.
-            </p>
+            <p className="relative text-[15px] font-bold text-[#1F4A1A]">Ninguna suscripción renueva todavía.</p>
           )}
           <p className="relative mt-2 text-[13px] font-medium text-[#2F6B28]">
             {plural(c.renews, "suscripción que renueva", "suscripciones que renuevan")}
           </p>
+          <dl className="relative mt-4 space-y-1.5 rounded-[14px] bg-white/70 p-3.5 text-[13px] font-medium text-[#1F4A1A]">
+            <div className="flex justify-between gap-3">
+              <dt>Cobrado en el período</dt>
+              <dd className="font-bold tnum">{money(d.collected.grossUsd, "USD")}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Neto</dt>
+              <dd className="font-bold tnum">{money(d.collected.netUsd, "USD")}</dd>
+            </div>
+            {d.collected.byCurrency.map((c) => (
+              <div key={c.currency} className="flex justify-between gap-3 text-[12.5px] text-[#2F6B28]">
+                <dt>{`${c.currency} · ${plural(c.payments, "cobro", "cobros")}`}</dt>
+                <dd className="tnum">{money(c.amount, c.currency)}</dd>
+              </div>
+            ))}
+            {d.collected.refunds > 0 && (
+              <div className="flex justify-between gap-3 text-[12.5px] text-[#2F6B28]">
+                <dt>{plural(d.collected.refunds, "reintegro", "reintegros")}</dt>
+                <dd className="tnum">{money(d.collected.refundedUsd, "USD")}</dd>
+              </div>
+            )}
+          </dl>
           {totalRenewing > 0 && (
-            <div className="relative mt-6 rounded-[14px] bg-white/70 p-3.5">
+            <div className="relative mt-4 rounded-[14px] bg-white/70 p-3.5">
               <Stack100
                 parts={d.byProduct
                   .filter((x) => x.renewing > 0)

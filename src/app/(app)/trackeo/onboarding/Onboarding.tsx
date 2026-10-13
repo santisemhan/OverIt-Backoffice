@@ -21,6 +21,10 @@ import { ErrorPanel, NotMeasured } from "../_ui";
  * sends the final payload, so there is no per-screen funnel, time per screen or "skipped". The users list cannot be
  * filtered by answer (the API has no such filter), so answers are not links; the KPI tiles are.
  */
+/** Usuarios filtered by one onboarding answer. */
+const answerHref = (question: string, answer: string) =>
+  `/trackeo/usuarios?${new URLSearchParams({ pregunta: question, respuesta: answer })}`;
+
 export function Onboarding() {
   const { filters } = useTrackeoFilters();
   const router = useRouter();
@@ -77,7 +81,7 @@ export function Onboarding() {
             tone="lilac"
             icon={<Icon.chat size={18} />}
             title="Qué respondieron"
-            sub="Porcentaje sobre quienes respondieron cada pregunta. En las de varias opciones suman más de 100%."
+            sub="Porcentaje sobre quienes respondieron cada pregunta. En las de varias opciones suman más de 100%. Tocá una respuesta para ver quiénes la eligieron."
           />
           {d.onboardingAnswers.length ? (
             <div className="grid gap-5 lg:grid-cols-2">
@@ -89,6 +93,7 @@ export function Onboarding() {
                 >
                   <BarList
                     color={SERIES[i % SERIES.length]}
+                    onPick={(a) => router.push(answerHref(qa.question, a))}
                     rows={[...qa.options]
                       .sort((a, b) => b.count - a.count)
                       .map((o) => ({ key: o.answer, label: o.answer, value: o.count, pct: pct(o.count, qa.answered) }))}
@@ -116,6 +121,7 @@ export function Onboarding() {
                   <BarList
                     color={SERIES[1]}
                     format={(r) => n(r.value)}
+                    onPick={(a) => router.push(answerHref("breakupMotives", a))}
                     rows={[...d.breakupMotives]
                       .sort((a, b) => b.count - a.count)
                       .map((m) => ({ key: m.answer, label: m.answer, value: m.count, pct: pct(m.count, total) }))}

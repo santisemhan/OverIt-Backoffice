@@ -26,6 +26,7 @@ import {
   EMOTION_LABEL,
   GENDER_LABEL,
   lookOf,
+  money,
   pct,
   questionLabel,
   sortQuestions,
@@ -34,7 +35,7 @@ import {
 import { useGrantAccess, useRenameUser, useRevokeAccess } from "@/lib/trackeo/mutations";
 import { useUser } from "@/lib/trackeo/queries";
 import type { UserDetail } from "@/lib/trackeo/types";
-import { displayName, ErrorPanel, NotMeasured, OnbBadge, SubBadge } from "../../_ui";
+import { displayName, ErrorPanel, OnbBadge, SubBadge } from "../../_ui";
 
 /*
  * Trackeo → Usuarios → one person: header, journey and tabs with what the API returns. Privacy: the ex's name, the
@@ -193,7 +194,8 @@ export function UserProfile({ id }: { id: string }) {
         {tab === "comunidad" && <CommunityTab u={u} />}
       </div>
 
-      <RenameDialog u={u} open={renaming} onClose={() => setRenaming(false)} />
+      {/* Keyed so every opening starts from the current (server-formatted) name. */}
+      <RenameDialog key={`${renaming}-${u.name ?? ""}`} u={u} open={renaming} onClose={() => setRenaming(false)} />
     </>
   );
 }
@@ -499,6 +501,12 @@ function Kpi({ label, value, sub }: { label: string; value: string; sub?: string
   );
 }
 
+const PAYMENT_LABEL: Record<string, string> = {
+  INITIAL_PURCHASE: "Primera compra",
+  RENEWAL: "Renovación",
+  NON_RENEWING_PURCHASE: "Compra única",
+};
+
 function SubscriptionTab({ u }: { u: UserDetail }) {
   const s = u.subscription;
   const toast = useToast();
@@ -582,8 +590,45 @@ function SubscriptionTab({ u }: { u: UserDetail }) {
             <p className="text-[13.5px] font-medium text-ink-60">Nunca tuvo acceso de cortesía.</p>
           )}
         </Panel>
-        <Panel title="Pagos">
-          <NotMeasured text="Solo guardamos el estado actual de la suscripción, no cada cobro ni reintegros." />
+        <Panel title="Cobros" sub="Lo que pagó en su moneda y el estimado en USD de RevenueCat.">
+          {u.payments.length ? (
+            <ul className="divide-y divide-bo-line">
+              {u.payments.map((p) => (
+                <li key={p.paymentId} className="flex items-start justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-bold text-ink">
+                      {PAYMENT_LABEL[p.eventType] ?? p.eventType}
+                      {p.productId && <span className="font-medium text-ink-60">{` · ${p.productId}`}</span>}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12.5px] font-medium text-ink-60">
+                      {dayShort(ts(p.purchasedAt))}
+                      {p.store && ` · ${p.store}`}
+                      {p.environment === "SANDBOX" && (
+                        <Badge size="sm" tone="warn">
+                          Sandbox
+                        </Badge>
+                      )}
+                      {p.refundedAt && (
+                        <Badge size="sm" tone="bad">
+                          {`Reintegrado el ${dayShort(ts(p.refundedAt))}`}
+                        </Badge>
+                      )}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className={cx("text-[13.5px] font-bold text-ink tnum", p.refundedAt && "line-through")}>
+                      {money(p.amountLocal, p.currency)}
+                    </p>
+                    {p.currency !== "USD" && (
+                      <p className="text-[12px] font-medium text-ink-60 tnum">≈ {money(p.amountUsd, "USD")}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13.5px] font-medium text-ink-60">No hay cobros registrados.</p>
+          )}
         </Panel>
       </div>
 

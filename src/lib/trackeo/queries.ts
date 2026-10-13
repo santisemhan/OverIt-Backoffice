@@ -22,12 +22,16 @@ export interface UserListFilters {
   search: string;
   onboarding: OnboardingFilter | null;
   subscription: SubscriptionFilter | null;
+  /** Onboarding answer filter: users whose answer to `question` includes `answer`. */
+  answer?: { question: string; answer: string } | null;
 }
 
 export const usersQueryParams = (f: UserListFilters, list: ListParams) => ({
   search: f.search.trim() || undefined,
   onboarding: f.onboarding ?? undefined,
   subscription: f.subscription ?? undefined,
+  question: f.answer?.question,
+  answer: f.answer?.answer,
   ...listQuery(list),
 });
 

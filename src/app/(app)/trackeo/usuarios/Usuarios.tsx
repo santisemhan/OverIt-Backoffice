@@ -1,7 +1,8 @@
 "use client";
 
+import { useDebounced } from "@/lib/useDebounced";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useDeferredValue, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
 import { DataTable, type Column, type SortState } from "@/components/ui/DataTable";
@@ -14,7 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { api, describeError } from "@/lib/api";
 import { ago, dayShort, n } from "@/lib/format";
 import { PAGE_SIZE_OPTIONS } from "@/lib/queries";
-import { BUCKET_LABEL, GENDER_LABEL, STATUS_LABEL, ts } from "@/lib/trackeo/labels";
+import { BUCKET_LABEL, GENDER_LABEL, questionLabel, STATUS_LABEL, ts } from "@/lib/trackeo/labels";
 import { useUsers, usersQueryParams, type UserListFilters } from "@/lib/trackeo/queries";
 import type { OnboardingFilter, Paged, SubscriptionFilter, UserListItem } from "@/lib/trackeo/types";
 import { ErrorPanel, OnbBadge, SubBadge, UserCell } from "../_ui";
@@ -57,8 +58,11 @@ export function Usuarios() {
 
   const onboarding = parse<OnbOpt>(params.get("onboarding"), ONB_OPTIONS, "all");
   const subscription = parse<SubOpt>(params.get("suscripcion"), SUB_OPTIONS, "all");
+  const question = params.get("pregunta");
+  const answerValue = params.get("respuesta");
+  const answer = question && answerValue ? { question, answer: answerValue } : null;
   const [q, setQ] = useState(() => params.get("q") ?? "");
-  const search = useDeferredValue(q);
+  const search = useDebounced(q);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [sort, setSort] = useState<SortState | null>(null);
@@ -77,10 +81,19 @@ export function Usuarios() {
     search,
     onboarding: onboarding === "all" ? null : onboarding,
     subscription: subscription === "all" ? null : subscription,
+    answer,
   };
   const list = { page, pageSize, sort };
   const users = useUsers(filters, list);
-  const filtered = !!(search.trim() || filters.onboarding || filters.subscription);
+  const filtered = !!(search.trim() || filters.onboarding || filters.subscription || answer);
+  const clearAnswer = () => {
+    const next = new URLSearchParams(params);
+    next.delete("pregunta");
+    next.delete("respuesta");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    setPage(1);
+  };
 
   const exportCsv = async () => {
     setExporting(true);
@@ -190,6 +203,21 @@ export function Usuarios() {
           }}
         />
       </div>
+      {answer && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="inline-flex h-[30px] items-center gap-1 rounded-full bg-purple-10 pr-1 pl-3 text-[13px] font-bold text-info">
+            {`Respondió ${answer.question === "breakupMotives" ? "motivo" : questionLabel(answer.question)}: ${answer.answer}`}
+            <button
+              type="button"
+              aria-label="Quitar filtro de respuesta"
+              onClick={clearAnswer}
+              className="flex h-[24px] w-[24px] press items-center justify-center rounded-full hover:bg-purple-20"
+            >
+              <Icon.x size={13} />
+            </button>
+          </span>
+        </div>
+      )}
       {users.isError && !users.data ? (
         <ErrorPanel error={users.error} onRetry={() => void users.refetch()} />
       ) : (
