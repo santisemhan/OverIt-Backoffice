@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { SectionPlaceholder } from "@/components/shell/SectionPlaceholder";
+import { FactsPage } from "@/components/contenido/pages";
 
 export const metadata: Metadata = { title: "Datos científicos" };
 
 export default function Page() {
-  return <SectionPlaceholder area="contenido" section="datos" />;
+  return <FactsPage />;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useContentBadges } from "@/components/contenido/useContentBadges";
 import { useModerationCounts } from "@/lib/moderacion/queries";
 import type { NavBadge } from "@/lib/nav";
 
@@ -11,7 +12,7 @@ export type NavBadges = Partial<Record<NavBadge, number>>;
  * on every page.
  */
 export function useNavBadges(): NavBadges {
-  return { ...useModerationBadges() };
+  return { ...useModerationBadges(), ...useContentBadges() };
 }
 
 /* Moderación: posts + comments waiting for review, and new inbox items (GET /moderation/counts, polled). */
