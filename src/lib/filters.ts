@@ -1,0 +1,103 @@
+"use client";
+
+import { useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+
+/*
+ * Global Trackeo filters (period, country, language), stored in the URL search params so every view is a shareable
+ * link and survives a reload. Defaults are omitted from the URL: /trackeo/resumen means "Histórico, all, all".
+ */
+
+export type RangeId = "all" | "90" | "30" | "7";
+export type Lang = "es" | "en";
+
+export interface TrackeoFilters {
+  range: RangeId;
+  /** ISO 3166-1 alpha-2, or "all". */
+  country: string;
+  lang: Lang | "all";
+}
+
+export const DEFAULT_FILTERS: TrackeoFilters = { range: "all", country: "all", lang: "all" };
+
+/* Histórico first (the team looks at it first), then the short periods. */
+export const RANGES: { id: RangeId; label: string; days: number | null }[] = [
+  { id: "all", label: "Histórico", days: null },
+  { id: "90", label: "90 días", days: 90 },
+  { id: "30", label: "30 días", days: 30 },
+  { id: "7", label: "7 días", days: 7 },
+];
+
+export const LANGS: Record<Lang, string> = { es: "Español", en: "English" };
+
+/* Countries offered in the filter (the app's markets). Replace with a server list when one exists. */
+export const COUNTRIES: { code: string; name: string }[] = [
+  { code: "AR", name: "Argentina" },
+  { code: "MX", name: "México" },
+  { code: "ES", name: "España" },
+  { code: "CO", name: "Colombia" },
+  { code: "CL", name: "Chile" },
+  { code: "US", name: "Estados Unidos" },
+  { code: "PE", name: "Perú" },
+  { code: "UY", name: "Uruguay" },
+  { code: "EC", name: "Ecuador" },
+  { code: "VE", name: "Venezuela" },
+  { code: "DO", name: "República Dominicana" },
+  { code: "PY", name: "Paraguay" },
+  { code: "CR", name: "Costa Rica" },
+  { code: "GT", name: "Guatemala" },
+  { code: "BO", name: "Bolivia" },
+  { code: "PA", name: "Panamá" },
+  { code: "PR", name: "Puerto Rico" },
+  { code: "SV", name: "El Salvador" },
+  { code: "HN", name: "Honduras" },
+];
+export const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code;
+
+const PARAM = { range: "periodo", country: "pais", lang: "idioma" } as const;
+
+function parseFilters(params: URLSearchParams): TrackeoFilters {
+  const range = params.get(PARAM.range);
+  const country = params.get(PARAM.country);
+  const lang = params.get(PARAM.lang);
+  return {
+    range: RANGES.some((r) => r.id === range) ? (range as RangeId) : DEFAULT_FILTERS.range,
+    country: country && /^[A-Z]{2}$/.test(country) ? country : DEFAULT_FILTERS.country,
+    lang: lang === "es" || lang === "en" ? lang : DEFAULT_FILTERS.lang,
+  };
+}
+
+/** Read and update the Trackeo filters. `set` replaces history (filters are not navigation steps). */
+export function useTrackeoFilters() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const filters = useMemo(() => parseFilters(params), [params]);
+
+  const set = useCallback(
+    (patch: Partial<TrackeoFilters>) => {
+      const next = { ...filters, ...patch };
+      const q = new URLSearchParams(params);
+      for (const key of Object.keys(PARAM) as (keyof TrackeoFilters)[]) {
+        if (next[key] === DEFAULT_FILTERS[key]) q.delete(PARAM[key]);
+        else q.set(PARAM[key], next[key]);
+      }
+      const s = q.toString();
+      router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
+    },
+    [filters, params, pathname, router],
+  );
+
+  return { filters, set };
+}
+
+/** The filter part of the current query string, to carry filters across Trackeo links. */
+export function filtersQuery(params: URLSearchParams): string {
+  const q = new URLSearchParams();
+  for (const key of Object.values(PARAM)) {
+    const v = params.get(key);
+    if (v) q.set(key, v);
+  }
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
