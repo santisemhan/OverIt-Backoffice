@@ -23,15 +23,7 @@ export function UserAvatar({ id, size = 34 }: { id: string; size?: number }) {
 export const displayName = (u: { name: string | null; email?: string | null } | null) =>
   u ? u.name?.trim() || u.email || "Sin nombre" : "Cuenta eliminada";
 
-/** Debounced value for search fields (avoids one request per keystroke). */
-export function useDebounced<T>(value: T, ms = 300) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(id);
-  }, [value, ms]);
-  return v;
-}
+export { useDebounced } from "@/lib/useDebounced";
 
 /** "Now" for relative times, refreshed every minute (render must stay pure). */
 export function useNow() {

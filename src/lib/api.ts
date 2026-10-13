@@ -85,6 +85,7 @@ function toQueryString(query: RequestOptions["query"]): string {
  */
 export function describeError(error: unknown): string {
   if (!(error instanceof ApiError)) return "No pudimos conectarnos con el servidor. Revisá tu conexión.";
+  if (error.status === 429) return "Demasiadas solicitudes seguidas. Esperá un minuto y reintentá.";
 
   switch (error.errorCode) {
     case "DASHBOARD_INVALID_CREDENTIALS":

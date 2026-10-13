@@ -195,13 +195,19 @@ export function Pager({
         {n((page - 1) * pageSize + 1)}–{n(Math.min(totalCount, page * pageSize))} de {n(totalCount)}
       </span>
       <div className="flex items-center gap-1.5">
-        <Button size="sm" disabled={page <= 1} onClick={() => onPage(page - 1)} icon={<Icon.back size={14} />}>
+        <Button
+          size="sm"
+          aria-label="Página anterior"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+          icon={<Icon.back size={14} />}
+        >
           <span className="hidden sm:inline">Anterior</span>
         </Button>
         <span className="px-1.5 text-[13px] font-bold text-ink tnum">
           {page} / {pages}
         </span>
-        <Button size="sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+        <Button size="sm" aria-label="Página siguiente" disabled={page >= pages} onClick={() => onPage(page + 1)}>
           <span className="hidden sm:inline">Siguiente</span>
           <Icon.arrowRight size={14} />
         </Button>

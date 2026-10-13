@@ -10,6 +10,7 @@ import { SectionTitle, StatTile } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Num } from "@/components/ui/Stat";
+import { HScroll } from "@/components/ui/HScroll";
 import { Segmented } from "@/components/ui/Tabs";
 import { useTrackeoFilters } from "@/lib/filters";
 import { dayShort, n, plural } from "@/lib/format";
@@ -167,10 +168,17 @@ export function Uso() {
           </div>
 
           <div className="mt-5">
-            <Panel
-              title="Por día"
-              actions={<Segmented label="Función" size="sm" options={PER_DAY} value={metric} onChange={setMetric} />}
-            >
+            <Panel title="Por día">
+              {/* Scrolls sideways on phones instead of widening the page. */}
+              <HScroll
+                label="Función"
+                arrows={false}
+                fade="#FFFFFF"
+                className="-mx-1 mb-3"
+                innerClassName="no-scrollbar px-1"
+              >
+                <Segmented label="Función" size="sm" options={PER_DAY} value={metric} onChange={setMetric} />
+              </HScroll>
               {d.perDay.length ? (
                 <TimeChart series={perDay} legend={false} />
               ) : (

@@ -255,7 +255,13 @@ export function Stepper({
             id={id}
             inputMode="numeric"
             value={text}
-            onChange={(e) => setText(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+            onChange={(e) => {
+              const next = e.target.value.replace(/[^0-9]/g, "").slice(0, 3);
+              setText(next);
+              // In range applies right away, so a dialog's confirm button works without blurring first.
+              const v = parseInt(next, 10);
+              if (Number.isFinite(v) && v >= min && v <= max) onChange(v);
+            }}
             onBlur={commit}
             onKeyDown={(e) => {
               if (e.key === "ArrowUp") {

@@ -30,7 +30,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       >
         <AnimatePresence initial={false}>
           {list.map((t) => (
-            <ToastItem key={t.id} t={t} reduce={!!reduce} onClose={() => close(t.id)} />
+            <ToastItem key={t.id} t={t} reduce={!!reduce} close={close} />
           ))}
         </AnimatePresence>
       </div>
@@ -38,13 +38,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function ToastItem({ t, reduce, onClose }: { t: Toast; reduce: boolean; onClose: () => void }) {
+function ToastItem({ t, reduce, close }: { t: Toast; reduce: boolean; close: (id: number) => void }) {
   const [hover, setHover] = useState(false);
+  const onClose = () => close(t.id);
+  // `close` is stable, so showing another toast does not restart this one's timer.
   useEffect(() => {
     if (hover) return;
-    const id = setTimeout(onClose, t.undo ? 6000 : 3800);
+    const id = setTimeout(() => close(t.id), t.undo ? 6000 : 3800);
     return () => clearTimeout(id);
-  }, [hover, onClose, t.undo]);
+  }, [hover, close, t.id, t.undo]);
   return (
     <motion.div
       layout={!reduce}
