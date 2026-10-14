@@ -988,16 +988,26 @@ export function DotMap({
               )
               .join("");
             return (
-              <path
+              <g
                 key={id}
-                d={d}
-                fill={color(id)}
-                fillOpacity={dim && has ? 0.4 : 1}
-                className={cx("transition-[fill-opacity] duration-150", has && onSelect && "cursor-pointer")}
+                className={cx(has && onSelect && "cursor-pointer")}
                 onPointerEnter={() => has && setHover(id)}
                 onPointerLeave={() => setHover(null)}
                 onClick={() => has && onSelect?.(selected === id ? null : id)}
-              />
+              >
+                {has && (
+                  <path
+                    d={list.map((p) => `M${p.c * pitch} ${p.r * pitch}h${pitch}v${pitch}h${-pitch}z`).join("")}
+                    fill="transparent"
+                  />
+                )}
+                <path
+                  d={d}
+                  fill={color(id)}
+                  fillOpacity={dim && has ? 0.4 : 1}
+                  className="transition-[fill-opacity] duration-150"
+                />
+              </g>
             );
           })}
         </svg>
