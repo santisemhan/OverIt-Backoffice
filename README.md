@@ -1,8 +1,7 @@
 # Over It · Back Office
 
-Internal tool for the Over It team: **Trackeo** (downloads, onboarding, subscriptions, users, app usage),
-**Moderación** (community, reports, Ninety, audit log) and **Contenido** (daily challenges, breathing exercises,
-articles, phrases, facts). Talks to `OverIt-Backend` through its `/api/dashboard/*` and back office endpoints.
+Internal tool for the Over It team: **Trackeo** (downloads, onboarding, subscriptions, users, app usage)
+and **Moderación** (community, reports, Ninety, audit log). Talks to `OverIt-Backend` through its `/api/dashboard/*` and back office endpoints.
 
 Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 · TanStack Query v5 · ESLint · Prettier.
 
@@ -38,7 +37,7 @@ not trusted by your browser, either run `dotnet dev-certs https --trust` or poin
 ### Backend requirements
 
 - **CORS:** the back office origin must be listed in `Dashboard:AllowedOrigins` of the backend configuration
-  (`http://localhost:3000` locally, the Vercel domain in production). Otherwise every request fails in the browser.
+  (`http://localhost:3000` locally, the Railway domain in production). Otherwise every request fails in the browser.
 - **Login:** `POST /api/dashboard/auth/admin/login` with `{ email, password }` returns
   `{ accessToken, expiresAtUtc, role, subjectId, displayName, email }`. Only `role: "Admin"` is accepted.
 
@@ -50,13 +49,16 @@ not trusted by your browser, either run `dotnet dev-certs https --trust` or poin
   to `/login?next=…`. Any API `401` clears the session, which sends you back to login. The API authorises every
   request on its own; the guard is a convenience, not the security boundary.
 
-## Deploy (Vercel)
+## Deploy (Railway)
 
-1. Import the repository in Vercel (framework preset **Next.js**, defaults for build and output).
-2. Set `NEXT_PUBLIC_API_BASE_URL` for Production and Preview.
-3. Add the deployment domain(s) to `Dashboard:AllowedOrigins` in the backend.
+The repo ships a `Dockerfile` (Next.js `standalone` output, Node 22, listens on `PORT`, 3000 by default).
 
-No `vercel.json` is needed. Pages are marked `noindex`.
+1. Create a Railway service from this repository; it builds with the `Dockerfile`.
+2. Add `NEXT_PUBLIC_API_BASE_URL` as a variable. It is inlined at build time, so Railway passes it as a build arg;
+   changing it needs a redeploy.
+3. Add the service domain to `Dashboard:AllowedOrigins` in the backend.
+
+Pages are marked `noindex`.
 
 ## Structure
 
@@ -67,11 +69,11 @@ src/
     globals.css              Tailwind v4 + design tokens (@theme) + utilities (press, skeleton, tnum…)
     login/                   Admin login
     (app)/                   Authenticated area (AuthGate + AppShell)
-      trackeo/ moderacion/ contenido/   One folder per section
+      tracking/ moderation/   One folder per section
   components/
     AuthProvider.tsx         Session (cookie) + QueryClient + toasts; useAuth, useRequireAdmin
     Logo.tsx                 Wordmark and the brand star pattern
-    shell/                   Sidebar, mobile top bar/drawer, ⌘K palette, Trackeo filter bar
+    shell/                   Sidebar, mobile top bar/drawer, ⌘K palette, Tracking filter bar
     ui/                      Design system primitives (see below)
   fonts/                     Satoshi, Isidora
   lib/
@@ -79,7 +81,7 @@ src/
     session.ts               Cookie session + external store for useSyncExternalStore
     queries.ts mutations.ts  React Query hooks (one per endpoint)
     nav.ts                   Areas → groups → sections (single source of navigation)
-    filters.ts               Trackeo filters in the URL (periodo, pais, idioma)
+    filters.ts               Tracking filters in the URL (period, country, language)
     format.ts                es-AR numbers, percentages, dates
     tones.ts cx.ts a11y.ts prefs.ts
 public/
