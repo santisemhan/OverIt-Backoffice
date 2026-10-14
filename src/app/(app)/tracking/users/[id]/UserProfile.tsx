@@ -302,7 +302,7 @@ function Journey({ u }: { u: UserDetail }) {
           state: "ok",
         }
       : u.status === "PENDING_SECOND_ONBOARDING"
-        ? { label: "Onboarding", value: "A medias", sub: "llegó a la paywall, no pagó", state: "half" }
+        ? { label: "Onboarding", value: "A medias", sub: "", state: "half" }
         : { label: "Onboarding", value: "No lo hizo", sub: "sin respuestas", state: "fail" },
     s
       ? { label: "Pagó", value: s.productId ?? "Suscripción", sub: dayShort(ts(s.firstSeenAt)), state: "done" }
