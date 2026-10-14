@@ -12,7 +12,8 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 - [x] Filtro global de período en Trackeo
 - [x] Filtros de país e idioma (Resumen, Onboarding y Usuarios; el resto de Trackeo los oculta)
 - [x] Las cuentas de la comunidad (`@community.overit.invalid`) no cuentan en ninguna lista, búsqueda ni métrica; su contenido sigue en Moderación
-- [x] Todas las listas paginadas
+- [x] Todas las listas paginadas, con tamaño de página fijo
+- [x] Todas las tablas se ordenan tocando el encabezado de la columna (en el servidor cuando la lista es paginada); los feeds de tarjetas (Comunidad, Reportes, conversación con Ninety) mantienen su orden
 - [x] Toasts con deshacer, modales de confirmación, skeletons, estados vacíos
 - [x] Policy `Backoffice.Admin` en backend + CORS para el origen del backoffice
 - [x] Historial (auditoría) de cada acción del equipo
@@ -32,19 +33,21 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 - [x] Dónde se van
 ### Onboarding
 - [x] KPIs empezaron / completaron / no completaron
-- [x] Tabla de respuestas por pregunta (las de inglés suman con su par en español)
+- [x] Tabla de respuestas por pregunta (las de inglés suman con su par en español), ordenable por columna
 - [x] Click en una respuesta → usuarios filtrados (en los dos idiomas)
-- [x] Por qué terminó: lo que escribió cada persona, con link y fecha, paginado
+- [x] Por qué terminó: lo que escribió cada persona, con link y fecha, en tabla ordenable y paginada
 - [x] Embudo pantalla por pantalla, tiempos y "saltaron"
 - [x] Quiénes cerraron la app en cada pantalla (con cuenta) → usuarios filtrados
 ### Suscripciones
 - [x] Tabla de suscriptores con filtro: todas, activas, renuevan, renuevan esta semana, cancelaron (con/sin acceso), vencidas, cortesía
+- [x] Suscriptores: fecha de suscripción, y orden por suscriptor, producto, fecha de suscripción, renovación o vencimiento y estado
 - [x] Ingreso mensual (MRR estimado)
 - [x] Altas y cancelaciones por día
-- [x] Motivos de cancelación (texto libre del feedback, no ligado a la suscripción), paginados
+- [x] Motivos de cancelación (texto libre del feedback, no ligado a la suscripción), en tabla ordenable y paginada
 - [x] Primera renovación (aproximación)
 ### Usuarios
-- [x] Listado con búsqueda, filtros, orden y paginación
+- [x] Listado con búsqueda, filtros, orden por cualquier columna y paginación (tamaño de página fijo)
+- [x] Perfil: retos y lecturas en tablas ordenables
 - [x] Descargar CSV
 - [x] Filtro de suscripción con "Activa"
 - [x] Perfil: cabecera, journey, tabs Onboarding / Progreso / Recursos / Ninety / Suscripción / Comunidad
@@ -67,9 +70,9 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 - [x] Reportes y feedback: inbox unificado, estados, filtros por tipo, acciones sobre el contenido
 - [x] Endpoint `inbox/counts`
 - [ ] ~~Captura adjunta en feedback~~ — no se guarda
-- [x] Ninety: KPIs, uso por día, por hora (UTC), quiénes más le escriben (paginado)
+- [x] Ninety: KPIs, uso por día, por hora (UTC), quiénes más le escriben (tabla ordenable, paginada)
 - [ ] ~~Ninety: temas y largo de conversaciones~~ — no se calculan
-- [x] Historial de acciones del equipo
+- [x] Historial de acciones del equipo, en tabla ordenable por fecha, quién, qué hizo y acción
 
 ## Fuera de alcance
 - Reembolsos.

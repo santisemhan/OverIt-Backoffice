@@ -1,40 +1,66 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
+import { DataTable, type Column, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SearchField } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Skeleton } from "@/components/ui/Skeleton";
 import { Icon } from "@/components/ui/icons";
 import { describeError } from "@/lib/api";
-import { cx } from "@/lib/cx";
 import { dayLong, time } from "@/lib/format";
 import { useAudit } from "@/lib/moderation/queries";
 import type { AuditEntry } from "@/lib/moderation/types";
-import { displayName, Pager, useDebounced } from "../_shared/ui";
+import { displayName, useDebounced } from "../_shared/ui";
 
-/* Moderation → History. Every team action (moderation and content) from the server audit log, grouped by day. */
+/* Moderation → History. Every team action (moderation and content) from the server audit log, newest first by default. */
 
 const PAGE_SIZE = 50;
+
+const COLUMNS: Column<AuditEntry>[] = [
+  {
+    key: "at",
+    header: "Cuándo",
+    sortable: true,
+    cell: (e) => (
+      <span className="whitespace-nowrap">
+        <span className="block font-bold text-ink">{dayLong(Date.parse(e.at))}</span>
+        <span className="tnum">{time(Date.parse(e.at))}</span>
+      </span>
+    ),
+  },
+  {
+    key: "admin",
+    header: "Quién",
+    sortable: true,
+    cell: (e) => <span className="font-bold whitespace-nowrap text-ink">{displayName(e.admin)}</span>,
+  },
+  {
+    key: "summary",
+    header: "Qué hizo",
+    sortable: true,
+    cell: (e) => <span className="block text-[14px] leading-[1.45] text-ink">{e.summary}</span>,
+  },
+  {
+    key: "action",
+    header: "Acción",
+    sortable: true,
+    cell: (e) => (
+      <span className="block max-w-[260px] truncate font-mono text-[11.5px] text-ink-60">
+        {e.action}
+        {e.targetId ? ` · ${e.targetId}` : ""}
+      </span>
+    ),
+  },
+];
 
 export function HistoryView() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<SortState>({ key: "at", desc: true });
   const search = useDebounced(q);
-  const audit = useAudit({ search, page, pageSize: PAGE_SIZE });
-
-  const groups = useMemo(() => {
-    const out: { day: string; items: AuditEntry[] }[] = [];
-    for (const e of audit.data?.items ?? []) {
-      const day = dayLong(Date.parse(e.at));
-      const last = out[out.length - 1];
-      if (last?.day === day) last.items.push(e);
-      else out.push({ day, items: [e] });
-    }
-    return out;
-  }, [audit.data]);
+  const audit = useAudit({ search, page, pageSize: PAGE_SIZE, sort });
 
   return (
     <>
@@ -54,12 +80,7 @@ export function HistoryView() {
           />
         }
       />
-      {audit.isPending ? (
-        <div className="space-y-5" aria-busy="true" aria-label="Cargando">
-          <Skeleton className="h-[260px] rounded-[20px]" />
-          <Skeleton className="h-[180px] rounded-[20px]" />
-        </div>
-      ) : audit.isError ? (
+      {audit.isError && !audit.data ? (
         <Panel>
           <EmptyState
             icon={<Icon.alert size={22} />}
@@ -68,52 +89,37 @@ export function HistoryView() {
             action={<Button onClick={() => audit.refetch()}>Reintentar</Button>}
           />
         </Panel>
-      ) : groups.length ? (
-        <>
-          <div className={cx("space-y-5 transition-opacity", audit.isPlaceholderData && "opacity-60")}>
-            {groups.map((g) => (
-              <Panel key={g.day} title={g.day} pad={false}>
-                <ol className="divide-y divide-bo-line px-5 pb-2">
-                  {g.items.map((e) => (
-                    <li key={e.id} className="flex items-start gap-3 py-3">
-                      <span className="mt-0.5 w-[44px] shrink-0 text-[12.5px] font-bold text-ink-60 tnum">
-                        {time(Date.parse(e.at))}
-                      </span>
-                      <span className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-purple-10 text-purple">
-                        <Icon.history size={13} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-[14px] leading-[1.45] font-medium text-ink">
-                          <b className="font-bold">{displayName(e.admin)}</b> · {e.summary}
-                        </p>
-                        <p className="mt-0.5 truncate font-mono text-[11.5px] text-ink-60">
-                          {e.action}
-                          {e.targetId ? ` · ${e.targetId}` : ""}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </Panel>
-            ))}
-          </div>
-          <Pager
-            page={page}
-            totalPages={audit.data.totalPages}
-            totalCount={audit.data.totalCount}
-            onPage={setPage}
-            busy={audit.isFetching}
-          />
-        </>
       ) : (
-        <Panel>
-          <EmptyState
-            icon={<Icon.history size={22} />}
-            title={search ? "Nada coincide con la búsqueda" : "Todavía no hay acciones"}
-            text={
-              search
-                ? "Probá con otra palabra."
-                : "Cuando elimines algo, cambies un nombre o resuelvas un reporte, queda registrado acá."
+        <Panel pad={false}>
+          <DataTable
+            label="Historial"
+            columns={COLUMNS}
+            rows={audit.data?.items ?? []}
+            rowKey={(e) => e.id}
+            sort={sort}
+            onSort={(s) => {
+              setSort(s);
+              setPage(1);
+            }}
+            loading={audit.isPending || audit.isPlaceholderData}
+            empty={
+              <EmptyState
+                icon={<Icon.history size={22} />}
+                title={search ? "Nada coincide con la búsqueda" : "Todavía no hay acciones"}
+                text={
+                  search
+                    ? "Probá con otra palabra."
+                    : "Cuando elimines algo, cambies un nombre o resuelvas un reporte, queda registrado acá."
+                }
+              />
+            }
+            pagination={
+              audit.data && {
+                page,
+                pageSize: audit.data.pageSize,
+                totalCount: audit.data.totalCount,
+                onPage: setPage,
+              }
             }
           />
         </Panel>

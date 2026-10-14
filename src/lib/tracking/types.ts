@@ -21,7 +21,19 @@ export interface Paged<T> {
 
 export type OnboardingFilter = "completed" | "partial" | "pending" | "notCompleted";
 export type SubscriptionFilter = SubscriptionBucket | "any" | "active" | "renewsThisWeek" | "grant";
-export type UserSort = "createdAt" | "name" | "email" | "lastLogin" | "age" | "expiresAt";
+export type UserSort =
+  | "createdAt"
+  | "name"
+  | "email"
+  | "lastLogin"
+  | "age"
+  | "onboarding"
+  | "country"
+  | "language"
+  | "product"
+  | "subscribedAt"
+  | "expiresAt"
+  | "subscription";
 
 export interface UserListItem {
   id: string;
@@ -42,6 +54,7 @@ export interface UserListItem {
     bucket: SubscriptionBucket;
     productId: string | null;
     store: string | null;
+    subscribedAt: string | null;
     expiresAt: string | null;
     willRenew: boolean;
   };

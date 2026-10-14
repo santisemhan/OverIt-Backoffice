@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
 import { BarList, Columns, SERIES } from "@/components/ui/charts";
-import { Pager } from "@/components/ui/DataTable";
+import { DataTable, Pager, sortRows, type Column, type SortState } from "@/components/ui/DataTable";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
@@ -49,6 +49,51 @@ import { displayName, ErrorPanel, OnbBadge, SubBadge } from "../../_ui";
  */
 
 const LIST_PAGE_SIZE = 10;
+
+const CHALLENGE_COLUMNS: Column<UserDetail["challenges"][number]>[] = [
+  {
+    key: "day",
+    header: "Día",
+    sortable: true,
+    cell: (c) => <span className="font-bold text-ink-60 tnum">Día {c.day}</span>,
+  },
+  { key: "title", header: "Reto", sortable: true, cell: (c) => <span className="font-bold text-ink">{c.title}</span> },
+  { key: "date", header: "Fecha", sortable: true, cell: (c) => dayShort(dayKey(c.date)) },
+  {
+    key: "completed",
+    header: "Estado",
+    sortable: true,
+    align: "right",
+    cell: (c) =>
+      c.completed ? (
+        <Badge size="sm" tone="ok">
+          Completó
+        </Badge>
+      ) : (
+        <Badge size="sm">Pendiente</Badge>
+      ),
+  },
+];
+
+const READ_COLUMNS: Column<UserDetail["resourceReads"][number]>[] = [
+  {
+    key: "type",
+    header: "Tipo",
+    sortable: true,
+    cell: (r) => (
+      <Badge size="sm" tone={r.type === "Article" ? "info" : "lime"}>
+        {r.type === "Article" ? "Artículo" : "Tip"}
+      </Badge>
+    ),
+  },
+  {
+    key: "title",
+    header: "Título",
+    sortable: true,
+    cell: (r) => <span className="font-bold text-ink">{r.title}</span>,
+  },
+  { key: "readAt", header: "Cuándo", sortable: true, cell: (r) => dateTime(ts(r.readAt)) },
+];
 
 type TabId = "onboarding" | "progress" | "resources" | "ninety" | "subscription" | "community";
 const TABS: TabId[] = ["onboarding", "progress", "resources", "ninety", "subscription", "community"];
@@ -389,6 +434,7 @@ function OnboardingTab({ u }: { u: UserDetail }) {
 function ProgressTab({ u }: { u: UserDetail }) {
   const p = u.plan;
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<SortState>({ key: "date", desc: true });
   const counts = new Map<string, number>();
   for (const e of u.emotions) counts.set(e.emotion, (counts.get(e.emotion) ?? 0) + 1);
   const done = u.challenges.filter((c) => c.completed).length;
@@ -440,28 +486,26 @@ function ProgressTab({ u }: { u: UserDetail }) {
         sub={`${n(done)} de ${plural(u.challenges.length, "reto asignado", "retos asignados")} completados`}
       >
         {u.challenges.length ? (
-          <>
-            <ul className="mt-4 divide-y divide-bo-line border-t border-bo-line">
-              {[...u.challenges]
-                .reverse()
-                .slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
-                .map((c) => (
-                  <li key={`${c.challengeId}-${c.date}`} className="flex items-center gap-3 px-5 py-2.5">
-                    <span className="w-[54px] shrink-0 text-[12.5px] font-bold text-ink-60 tnum">Día {c.day}</span>
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-ink">{c.title}</span>
-                    <span className="shrink-0 text-[12.5px] font-medium text-ink-60">{dayShort(dayKey(c.date))}</span>
-                    {c.completed ? (
-                      <Badge size="sm" tone="ok">
-                        Completó
-                      </Badge>
-                    ) : (
-                      <Badge size="sm">Pendiente</Badge>
-                    )}
-                  </li>
-                ))}
-            </ul>
-            <Pager page={page} pageSize={LIST_PAGE_SIZE} totalCount={u.challenges.length} onPage={setPage} />
-          </>
+          <div className="mt-4">
+            <DataTable
+              label="Retos"
+              columns={CHALLENGE_COLUMNS}
+              rows={sortRows(u.challenges, sort, {
+                day: (c) => c.day,
+                title: (c) => c.title,
+                date: (c) => c.date,
+                completed: (c) => (c.completed ? 1 : 0),
+              }).slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)}
+              rowKey={(c) => `${c.challengeId}-${c.date}`}
+              sort={sort}
+              onSort={(s) => {
+                setSort(s);
+                setPage(1);
+              }}
+              minWidth={520}
+              pagination={{ page, pageSize: LIST_PAGE_SIZE, totalCount: u.challenges.length, onPage: setPage }}
+            />
+          </div>
         ) : (
           <div className="mt-4 border-t border-bo-line">
             <EmptyState compact title="Sin retos asignados" />
@@ -474,26 +518,29 @@ function ProgressTab({ u }: { u: UserDetail }) {
 
 function ResourcesTab({ u }: { u: UserDetail }) {
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<SortState>({ key: "readAt", desc: true });
   return (
     <Panel pad={false} title="Leyó" sub={plural(u.resourceReads.length, "artículo o tip", "artículos y tips")}>
       {u.resourceReads.length ? (
-        <>
-          <ul className="mt-4 divide-y divide-bo-line border-t border-bo-line">
-            {[...u.resourceReads]
-              .sort((a, b) => ts(b.readAt) - ts(a.readAt))
-              .slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
-              .map((r) => (
-                <li key={`${r.resourceId}-${r.readAt}`} className="flex items-center gap-3 px-5 py-2.5">
-                  <Badge size="sm" tone={r.type === "Article" ? "info" : "lime"}>
-                    {r.type === "Article" ? "Artículo" : "Tip"}
-                  </Badge>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-ink">{r.title}</span>
-                  <span className="shrink-0 text-[12.5px] font-medium text-ink-60">{dateTime(ts(r.readAt))}</span>
-                </li>
-              ))}
-          </ul>
-          <Pager page={page} pageSize={LIST_PAGE_SIZE} totalCount={u.resourceReads.length} onPage={setPage} />
-        </>
+        <div className="mt-4">
+          <DataTable
+            label="Leyó"
+            columns={READ_COLUMNS}
+            rows={sortRows(u.resourceReads, sort, {
+              type: (r) => r.type,
+              title: (r) => r.title,
+              readAt: (r) => ts(r.readAt),
+            }).slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)}
+            rowKey={(r) => `${r.resourceId}-${r.readAt}`}
+            sort={sort}
+            onSort={(s) => {
+              setSort(s);
+              setPage(1);
+            }}
+            minWidth={520}
+            pagination={{ page, pageSize: LIST_PAGE_SIZE, totalCount: u.resourceReads.length, onPage: setPage }}
+          />
+        </div>
       ) : (
         <div className="mt-4 border-t border-bo-line">
           <EmptyState compact icon={<Icon.book size={22} />} title="No leyó nada todavía" />

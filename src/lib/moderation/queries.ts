@@ -1,6 +1,7 @@
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { RangeId } from "@/lib/filters";
+import { listQuery as pagedQuery, type ListParams } from "@/lib/queries";
 import type {
   AuditEntry,
   InboxCounts,
@@ -117,10 +118,8 @@ export const postCommentsQuery = (postId: string) =>
 export const usePostComments = (postId: string, enabled: boolean) =>
   useQuery({ ...postCommentsQuery(postId), enabled });
 
-export interface AuditParams {
+export interface AuditParams extends ListParams {
   search: string;
-  page: number;
-  pageSize: number;
 }
 
 export const auditQuery = (p: AuditParams) =>
@@ -128,7 +127,7 @@ export const auditQuery = (p: AuditParams) =>
     queryKey: ["moderation", "audit", p],
     queryFn: ({ signal }) =>
       api<Paged<AuditEntry>>(`${BASE}/audit`, {
-        query: { search: p.search.trim(), page: p.page, pageSize: p.pageSize },
+        query: { search: p.search.trim(), ...pagedQuery(p) },
         signal,
       }),
     placeholderData: keepPreviousData,
@@ -142,12 +141,11 @@ export const ninetyQuery = (range: RangeId) =>
   });
 export const useNinety = (range: RangeId) => useQuery(ninetyQuery(range));
 
-export const ninetyUsersQuery = (range: RangeId, page: number, pageSize: number) =>
+export const ninetyUsersQuery = (range: RangeId, list: ListParams) =>
   queryOptions({
-    queryKey: ["moderation", "ninety", "users", range, page, pageSize],
+    queryKey: ["moderation", "ninety", "users", range, list],
     queryFn: ({ signal }) =>
-      api<Paged<NinetyTopUser>>(`${BASE}/metrics/ninety/users`, { query: { range, page, pageSize }, signal }),
+      api<Paged<NinetyTopUser>>(`${BASE}/metrics/ninety/users`, { query: { range, ...pagedQuery(list) }, signal }),
     placeholderData: keepPreviousData,
   });
-export const useNinetyUsers = (range: RangeId, page: number, pageSize: number) =>
-  useQuery(ninetyUsersQuery(range, page, pageSize));
+export const useNinetyUsers = (range: RangeId, list: ListParams) => useQuery(ninetyUsersQuery(range, list));

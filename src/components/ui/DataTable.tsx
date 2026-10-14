@@ -29,6 +29,59 @@ export type Column<T> = {
 const STICKY =
   "sticky left-0 transition-shadow duration-200 group-data-[l=true]/hs:shadow-[8px_0_10px_-8px_rgba(36,35,35,0.22)]";
 
+export const ariaSort = (sort: SortState | null | undefined, key: string) =>
+  sort?.key === key ? (sort.desc ? "descending" : "ascending") : undefined;
+
+/* Header control shared by every sortable table: a new column starts descending, the same column flips. */
+export function SortButton({
+  sortKey,
+  sort,
+  onSort,
+  children,
+}: {
+  sortKey: string;
+  sort: SortState | null | undefined;
+  onSort: (sort: SortState) => void;
+  children: ReactNode;
+}) {
+  const active = sort?.key === sortKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort({ key: sortKey, desc: active ? !sort!.desc : true })}
+      className={cx("inline-flex press items-center gap-1 rounded-[6px] hover:text-ink", active && "text-ink")}
+    >
+      {children}
+      {!active ? (
+        <Icon.sort size={13} className="opacity-50" />
+      ) : sort!.desc ? (
+        <Icon.down size={13} strokeWidth={2.4} />
+      ) : (
+        <Icon.up size={13} strokeWidth={2.4} />
+      )}
+    </button>
+  );
+}
+
+/* Only for lists the client already holds whole (a profile's challenges, say); paged lists sort on the server. */
+export function sortRows<T>(
+  rows: T[],
+  sort: SortState | null,
+  by: Record<string, (row: T) => string | number | null>,
+): T[] {
+  const get = sort && by[sort.key];
+  if (!get) return rows;
+  const dir = sort.desc ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const x = get(a);
+    const y = get(b);
+    if (x === y) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return (typeof x === "string" && typeof y === "string" ? x.localeCompare(y, "es") : x < y ? -1 : 1) * dir;
+  });
+}
+
 export function DataTable<T>({
   label,
   columns,
@@ -62,8 +115,6 @@ export function DataTable<T>({
   maxHeight?: number | string;
   pagination?: { page: number; pageSize: number; totalCount: number; onPage: (page: number) => void };
 }) {
-  const toggle = (key: string) => onSort?.({ key, desc: sort?.key === key ? !sort.desc : true });
-
   const showSkeleton = loading && rows.length === 0;
   if (!showSkeleton && rows.length === 0 && empty) return <div className="border-t border-bo-line">{empty}</div>;
 
@@ -74,46 +125,29 @@ export function DataTable<T>({
           <table className="w-full text-left" style={{ minWidth }}>
             <thead>
               <tr className="text-[12.5px] text-ink-60">
-                {columns.map((c, i) => {
-                  const active = sort?.key === c.key;
-                  return (
-                    <th
-                      key={c.key}
-                      scope="col"
-                      aria-sort={active ? (sort!.desc ? "descending" : "ascending") : undefined}
-                      className={cx(
-                        "sticky top-0 z-[1] border-y border-bo-line bg-bo-soft px-3 py-3 font-bold whitespace-nowrap",
-                        c.align === "right" && "text-right",
-                        i === 0 && "pl-5",
-                        i === columns.length - 1 && "pr-5",
-                        i === 0 && stickyFirstColumn && cx(STICKY, "z-[2]"),
-                        c.className,
-                      )}
-                    >
-                      {c.sortable && onSort ? (
-                        <button
-                          type="button"
-                          onClick={() => toggle(c.key)}
-                          className={cx(
-                            "inline-flex press items-center gap-1 rounded-[6px] hover:text-ink",
-                            active && "text-ink",
-                          )}
-                        >
-                          {c.header}
-                          {!active ? (
-                            <Icon.sort size={13} className="opacity-50" />
-                          ) : sort!.desc ? (
-                            <Icon.down size={13} strokeWidth={2.4} />
-                          ) : (
-                            <Icon.up size={13} strokeWidth={2.4} />
-                          )}
-                        </button>
-                      ) : (
-                        c.header
-                      )}
-                    </th>
-                  );
-                })}
+                {columns.map((c, i) => (
+                  <th
+                    key={c.key}
+                    scope="col"
+                    aria-sort={ariaSort(sort, c.key)}
+                    className={cx(
+                      "sticky top-0 z-[1] border-y border-bo-line bg-bo-soft px-3 py-3 font-bold whitespace-nowrap",
+                      c.align === "right" && "text-right",
+                      i === 0 && "pl-5",
+                      i === columns.length - 1 && "pr-5",
+                      i === 0 && stickyFirstColumn && cx(STICKY, "z-[2]"),
+                      c.className,
+                    )}
+                  >
+                    {c.sortable && onSort ? (
+                      <SortButton sortKey={c.key} sort={sort} onSort={onSort}>
+                        {c.header}
+                      </SortButton>
+                    ) : (
+                      c.header
+                    )}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody

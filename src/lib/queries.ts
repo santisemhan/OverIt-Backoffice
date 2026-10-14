@@ -15,7 +15,6 @@ import type { SortState } from "@/components/ui/DataTable";
  */
 
 export const DEFAULT_PAGE_SIZE = 25;
-export const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 /** What a paged list asks the server for. Always cached together. */
 export interface ListParams {

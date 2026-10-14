@@ -12,6 +12,8 @@ frontend; it is kept in sync with the implementation.
 - **JSON.** camelCase. Enums are strings (exact casing shown below). Dates are ISO-8601 UTC
   (`"2026-10-13T12:00:00Z"`); day keys are `"YYYY-MM-DD"` (UTC day).
 - **CORS.** `http://localhost:3000` is allowed in Development/Local.
+- **Sorting.** Lists that take `sort` and `desc` accept only the keys listed for them; anything else falls back to the
+  list's default order. Ties break by id, so pages never overlap.
 - **Paging.** `?page=1&pageSize=20` (pageSize clamped to 1..100). Paged responses:
 
 ```ts
@@ -62,7 +64,7 @@ Query:
 | `language` | `es` · `en` |
 | `leftAt` | onboarding screen id: people with an account whose onboarding stopped on that screen |
 | `question`, `answer` | both together, each repeatable: users whose answer to any of the `question` keys includes any of the `answer` values (exact strings as in `onboardingAnswers`, so the es and en variants of one answer go together); `question=breakupMotives` filters by the second-part motives |
-| `sort` | `createdAt` (default, desc) · `name` · `email` · `lastLogin` · `age` · `expiresAt` |
+| `sort` | `createdAt` (default, desc) · `name` · `email` · `lastLogin` · `age` · `onboarding` · `country` · `language` · `product` · `subscribedAt` (desc) · `expiresAt` · `subscription` (state: renews, canceled with access, canceled, none; desc) |
 | `desc` | `true`/`false` (default depends on column: text asc, dates desc) |
 | `page`, `pageSize` | paging |
 
@@ -88,6 +90,7 @@ type UserListItem = {
     bucket: SubscriptionBucket;
     productId: string | null;
     store: string | null;            // e.g. "APP_STORE"
+    subscribedAt: string | null;     // when the subscription was first seen
     expiresAt: string | null;
     willRenew: boolean;
   };
@@ -264,7 +267,8 @@ type OnboardingFunnel = {
 ### `GET /api/backoffice/metrics/onboarding/breakup-motives?range=&country=&language=`
 
 What each person wrote as breakup motives in the second part of the onboarding (free text), for users created
-in the range (same cohort and filters as `overview`), newest sign-up first. `page`, `pageSize`.
+in the range (same cohort and filters as `overview`). `sort`: `createdAt` (default, desc) · `name` · `email`; `desc`;
+`page`, `pageSize`.
 
 ```ts
 type BreakupMotivesEntry = { userId: string; name: string | null; email: string; status: UserStatus;
@@ -288,11 +292,12 @@ type SubscriptionsMetrics = {
 };
 ```
 
-Lists per bucket: use `GET /users?subscription=<bucket>&sort=expiresAt` (`any` for every subscriber).
+Lists per bucket: use `GET /users?subscription=<bucket>&sort=expiresAt` (`any` for every subscriber; `sort=subscribedAt`
+for the subscription date).
 
 ### `GET /api/backoffice/metrics/subscriptions/cancel-reasons?range=`
 
-The cancellation form messages in the range, newest first. `page`, `pageSize`.
+The cancellation form messages in the range. `sort`: `at` (default, desc) · `message`; `desc`; `page`, `pageSize`.
 Response `Paged<{ feedbackId: string; userId: string | null; at: string; message: string }>`.
 
 ### `GET /api/backoffice/metrics/usage?range=`
@@ -324,7 +329,8 @@ type NinetyMetrics = {
 
 ### `GET /api/backoffice/metrics/ninety/users?range=`
 
-Who writes the most in the range, most messages first. `page`, `pageSize`.
+Who writes the most in the range. `sort`: `messages` (default, desc) · `lastMessageAt` (desc); `desc`; `page`,
+`pageSize`.
 Response `Paged<{ userId: string; name: string | null; email: string | null; userMessages: number; lastMessageAt: string }>`.
 
 ---
@@ -433,7 +439,8 @@ or source; `400` (ProblemDetails) for an unknown status string.
 
 ### `GET /api/backoffice/audit`
 
-Query: `search` (summary, action, target id, admin email), `action`, `targetType`, `page`, `pageSize`.
+Query: `search` (summary, action, target id, admin email), `action`, `targetType`, `sort` (`at` default, desc ·
+`admin` · `action` · `summary`), `desc`, `page`, `pageSize`.
 
 ```ts
 type AuditEntry = {

@@ -106,17 +106,17 @@ export const onboardingFunnelQuery = (f: TrackingFilters) =>
 export const useOnboardingFunnel = (f: TrackingFilters) =>
   useQuery({ ...onboardingFunnelQuery(f), placeholderData: keepPreviousData });
 
-export const breakupMotivesQuery = (f: TrackingFilters, page: number, pageSize: number) =>
+export const breakupMotivesQuery = (f: TrackingFilters, list: ListParams) =>
   queryOptions({
-    queryKey: ["tracking", "breakupMotives", f, page, pageSize],
+    queryKey: ["tracking", "breakupMotives", f, list],
     queryFn: ({ signal }) =>
       api<Paged<BreakupMotivesEntry>>("/api/backoffice/metrics/onboarding/breakup-motives", {
-        query: { ...metricsParams(f), page, pageSize },
+        query: { ...metricsParams(f), ...listQuery(list) },
         signal,
       }),
   });
-export const useBreakupMotives = (f: TrackingFilters, page: number, pageSize: number) =>
-  useQuery({ ...breakupMotivesQuery(f, page, pageSize), placeholderData: keepPreviousData });
+export const useBreakupMotives = (f: TrackingFilters, list: ListParams) =>
+  useQuery({ ...breakupMotivesQuery(f, list), placeholderData: keepPreviousData });
 
 export const subscriptionsMetricsQuery = (range: RangeId) =>
   queryOptions({
@@ -126,17 +126,17 @@ export const subscriptionsMetricsQuery = (range: RangeId) =>
   });
 export const useSubscriptionsMetrics = (range: RangeId) => useQuery(subscriptionsMetricsQuery(range));
 
-export const cancelReasonsQuery = (range: RangeId, page: number, pageSize: number) =>
+export const cancelReasonsQuery = (range: RangeId, list: ListParams) =>
   queryOptions({
-    queryKey: ["tracking", "cancelReasons", range, page, pageSize],
+    queryKey: ["tracking", "cancelReasons", range, list],
     queryFn: ({ signal }) =>
       api<Paged<CancelReason>>("/api/backoffice/metrics/subscriptions/cancel-reasons", {
-        query: { range, page, pageSize },
+        query: { range, ...listQuery(list) },
         signal,
       }),
   });
-export const useCancelReasons = (range: RangeId, page: number, pageSize: number) =>
-  useQuery({ ...cancelReasonsQuery(range, page, pageSize), placeholderData: keepPreviousData });
+export const useCancelReasons = (range: RangeId, list: ListParams) =>
+  useQuery({ ...cancelReasonsQuery(range, list), placeholderData: keepPreviousData });
 
 export const usageQuery = (range: RangeId) =>
   queryOptions({

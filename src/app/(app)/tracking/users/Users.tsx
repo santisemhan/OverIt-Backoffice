@@ -15,7 +15,7 @@ import { useToast } from "@/components/ui/Toast";
 import { api, describeError } from "@/lib/api";
 import { countryName, LANGS, langName, type Lang } from "@/lib/filters";
 import { ago, dayShort, n } from "@/lib/format";
-import { PAGE_SIZE_OPTIONS } from "@/lib/queries";
+import { DEFAULT_PAGE_SIZE } from "@/lib/queries";
 import { answerLabel, BUCKET_LABEL, GENDER_LABEL, questionLabel, STATUS_LABEL, ts } from "@/lib/tracking/labels";
 import { STEPS } from "@/lib/tracking/onboarding";
 import { useCountries, useUsers, usersQueryParams, type UserListFilters } from "@/lib/tracking/queries";
@@ -77,7 +77,6 @@ export function Users() {
   const [q, setQ] = useState(() => params.get("q") ?? "");
   const search = useDebounced(q);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
   const [sort, setSort] = useState<SortState | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -99,7 +98,7 @@ export function Users() {
     language: language === "all" ? null : language,
     leftAt,
   };
-  const list = { page, pageSize, sort };
+  const list = { page, pageSize: DEFAULT_PAGE_SIZE, sort };
   const users = useUsers(filters, list);
   const filtered = !!(
     search.trim() ||
@@ -141,7 +140,7 @@ export function Users() {
   const [now] = useState(() => Date.now());
   const columns: Column<UserListItem>[] = [
     { key: "name", header: "Usuario", sortable: true, cell: (u) => <UserCell u={u} /> },
-    { key: "onboarding", header: "Onboarding", cell: (u) => <OnbBadge status={u.status} size="sm" /> },
+    { key: "onboarding", header: "Onboarding", sortable: true, cell: (u) => <OnbBadge status={u.status} size="sm" /> },
     {
       key: "expiresAt",
       header: "Suscripción",
@@ -165,11 +164,13 @@ export function Users() {
     {
       key: "country",
       header: "País",
+      sortable: true,
       cell: (u) => <span className="text-ink-70">{u.country ? countryName(u.country) : "—"}</span>,
     },
     {
       key: "language",
       header: "Idioma",
+      sortable: true,
       cell: (u) => <span className="text-ink-70">{u.language ? langName(u.language) : "—"}</span>,
     },
     {
@@ -240,16 +241,6 @@ export function Users() {
           onChange={(v) => setParam("country", v)}
         />
         <Select label="Idioma" value={language} options={LANG_OPTIONS} onChange={(v) => setParam("language", v)} />
-        <Select
-          label="Por página"
-          className="ml-auto"
-          value={String(pageSize)}
-          options={PAGE_SIZE_OPTIONS.map((s) => ({ id: String(s), label: `${s} por página` }))}
-          onChange={(v) => {
-            setPageSize(Number(v));
-            setPage(1);
-          }}
-        />
       </div>
       {(answer || leftAt) && (
         <div className="mb-4 flex flex-wrap items-center gap-2">

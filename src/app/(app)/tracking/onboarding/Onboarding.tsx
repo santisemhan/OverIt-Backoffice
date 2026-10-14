@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
 import { BarList, SERIES, TipRow } from "@/components/ui/charts";
-import { Pager } from "@/components/ui/DataTable";
+import { ariaSort, DataTable, SortButton, sortRows, type Column, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HScroll } from "@/components/ui/HScroll";
 import { Icon } from "@/components/ui/icons";
@@ -23,6 +23,7 @@ import { dayLong, n, p, plural, secs } from "@/lib/format";
 import { mergeAnswers, pct, questionLabel, ts, type MergedAnswer, type MergedQuestion } from "@/lib/tracking/labels";
 import { funnelRows, PAYWALL, shot, SIGN_UP, STEPS, type FunnelRow } from "@/lib/tracking/onboarding";
 import { useBreakupMotives, useOnboardingFunnel, useOverview, useUsers } from "@/lib/tracking/queries";
+import type { BreakupMotivesEntry } from "@/lib/tracking/types";
 import { ErrorPanel, UserCell } from "../_ui";
 
 /*
@@ -238,27 +239,39 @@ function AnswersTable({
   questions: MergedQuestion[];
   onPick: (q: MergedQuestion, a: MergedAnswer) => void;
 }) {
+  const [sort, setSort] = useState<SortState | null>(null);
+  const groups = sortRows(questions, sort, { question: (qa) => questionLabel(qa.question) }).map((qa) => ({
+    ...qa,
+    options: sortRows(qa.options, sort, {
+      answer: (o) => o.label,
+      count: (o) => o.count,
+      pct: (o) => pct(o.count, qa.answered),
+    }),
+  }));
+  const head = (key: string, label: string, className: string) => (
+    <th
+      scope="col"
+      aria-sort={ariaSort(sort, key)}
+      className={cx("border-b border-bo-line bg-bo-soft font-bold", className)}
+    >
+      <SortButton sortKey={key} sort={sort} onSort={setSort}>
+        {label}
+      </SortButton>
+    </th>
+  );
   return (
     <HScroll label="Qué respondieron" arrows={false}>
       <table className="w-full min-w-[640px] text-left">
         <thead>
           <tr className="text-[12.5px] text-ink-60">
-            <th scope="col" className="border-b border-bo-line bg-bo-soft py-3 pr-3 pl-5 font-bold">
-              Pregunta
-            </th>
-            <th scope="col" className="border-b border-bo-line bg-bo-soft px-3 py-3 font-bold">
-              Respuesta
-            </th>
-            <th scope="col" className="border-b border-bo-line bg-bo-soft px-3 py-3 text-right font-bold">
-              Personas
-            </th>
-            <th scope="col" className="border-b border-bo-line bg-bo-soft py-3 pr-5 pl-3 text-right font-bold">
-              %
-            </th>
+            {head("question", "Pregunta", "py-3 pr-3 pl-5")}
+            {head("answer", "Respuesta", "px-3 py-3")}
+            {head("count", "Personas", "px-3 py-3 text-right")}
+            {head("pct", "%", "py-3 pr-5 pl-3 text-right")}
           </tr>
         </thead>
         <tbody>
-          {questions.map((qa) =>
+          {groups.map((qa) =>
             qa.options.map((o, i) => (
               <tr
                 key={`${qa.question}-${o.label}`}
@@ -304,8 +317,34 @@ function BreakupMotives() {
   const { filters } = useTrackingFilters();
   const key = JSON.stringify(filters);
   const [paging, setPaging] = useState({ key, page: 1 });
+  const [sort, setSort] = useState<SortState>({ key: "createdAt", desc: true });
   const page = paging.key === key ? paging.page : 1;
-  const q = useBreakupMotives(filters, page, MOTIVES_PAGE_SIZE);
+  const q = useBreakupMotives(filters, { page, pageSize: MOTIVES_PAGE_SIZE, sort });
+  const columns: Column<BreakupMotivesEntry>[] = [
+    {
+      key: "name",
+      header: "Persona",
+      sortable: true,
+      cell: (m) => (
+        <Link href={`/tracking/users/${m.userId}`} className="font-bold whitespace-nowrap text-purple hover:underline">
+          {m.name?.trim() || m.email}
+        </Link>
+      ),
+    },
+    {
+      key: "motives",
+      header: "Motivos",
+      cell: (m) => (
+        <span className="block font-medium break-words text-ink">{m.motives.map((t) => `“${t}”`).join(" · ")}</span>
+      ),
+    },
+    {
+      key: "createdAt",
+      header: "Se registró",
+      sortable: true,
+      cell: (m) => <span className="whitespace-nowrap">{m.createdAt ? dayLong(ts(m.createdAt)) : "—"}</span>,
+    },
+  ];
   return (
     <Panel pad={false}>
       {q.isError && !q.data ? (
@@ -315,38 +354,29 @@ function BreakupMotives() {
           title="No pudimos cargar los motivos"
           action={<Button onClick={() => void q.refetch()}>Reintentar</Button>}
         />
-      ) : !q.data ? (
-        <div className="space-y-2 p-5">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-[52px] rounded-[12px]" />
-          ))}
-        </div>
-      ) : q.data.items.length ? (
-        <>
-          <ul className="divide-y divide-bo-line">
-            {q.data.items.map((m) => (
-              <li key={m.userId} className="px-5 py-3.5">
-                <p className="text-[13.5px] font-medium break-words text-ink">
-                  {m.motives.map((t) => `“${t}”`).join(" · ")}
-                </p>
-                <p className="mt-1 text-[12px] font-medium text-ink-60">
-                  <Link href={`/tracking/users/${m.userId}`} className="font-bold text-purple hover:underline">
-                    {m.name?.trim() || m.email}
-                  </Link>
-                  {m.createdAt && ` · se registró el ${dayLong(ts(m.createdAt))}`}
-                </p>
-              </li>
-            ))}
-          </ul>
-          <Pager
-            page={page}
-            pageSize={q.data.pageSize}
-            totalCount={q.data.totalCount}
-            onPage={(next) => setPaging({ key, page: next })}
-          />
-        </>
       ) : (
-        <EmptyState compact title="Nadie cargó motivos en este período" />
+        <DataTable
+          label="Por qué terminó"
+          columns={columns}
+          rows={q.data?.items ?? []}
+          rowKey={(m) => m.userId}
+          sort={sort}
+          onSort={(s) => {
+            setSort(s);
+            setPaging({ key, page: 1 });
+          }}
+          loading={q.isPending}
+          minWidth={640}
+          empty={<EmptyState compact title="Nadie cargó motivos en este período" />}
+          pagination={
+            q.data && {
+              page,
+              pageSize: q.data.pageSize,
+              totalCount: q.data.totalCount,
+              onPage: (next) => setPaging({ key, page: next }),
+            }
+          }
+        />
       )}
     </Panel>
   );

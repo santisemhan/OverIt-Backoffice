@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FilterBar } from "@/components/shell/FilterBar";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
+import { DataTable, type Column, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PageSkeleton, Skeleton } from "@/components/ui/Skeleton";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Num } from "@/components/ui/Stat";
 import { Segmented } from "@/components/ui/Tabs";
 import { Columns, SERIES, TimeChart, WithTable } from "@/components/ui/charts";
@@ -17,7 +18,8 @@ import { describeError } from "@/lib/api";
 import { useTrackingFilters } from "@/lib/filters";
 import { dayShort, n, n1, plural } from "@/lib/format";
 import { useNinety, useNinetyUsers } from "@/lib/moderation/queries";
-import { displayName, Pager, useNow, UserAvatar } from "../_shared/ui";
+import type { NinetyTopUser } from "@/lib/moderation/types";
+import { displayName, useNow, UserAvatar } from "../_shared/ui";
 import { ago } from "@/lib/format";
 
 /*
@@ -33,9 +35,37 @@ export function NinetyView() {
   const q = useNinety(filters.range);
   const [metric, setMetric] = useState<"msgs" | "people">("msgs");
   const [paging, setPaging] = useState({ range: filters.range, page: 1 });
+  const [topSort, setTopSort] = useState<SortState>({ key: "messages", desc: true });
   const page = paging.range === filters.range ? paging.page : 1;
-  const top = useNinetyUsers(filters.range, page, TOP_PAGE_SIZE);
+  const top = useNinetyUsers(filters.range, { page, pageSize: TOP_PAGE_SIZE, sort: topSort });
   const now = useNow();
+  const router = useRouter();
+
+  const topColumns: Column<NinetyTopUser>[] = [
+    {
+      key: "user",
+      header: "Persona",
+      cell: (x) => (
+        <span className="flex items-center gap-3">
+          <UserAvatar id={x.userId} size={32} />
+          <span className="min-w-0 truncate text-[14px] font-bold text-ink">{displayName(x)}</span>
+        </span>
+      ),
+    },
+    {
+      key: "lastMessageAt",
+      header: "Último mensaje",
+      sortable: true,
+      cell: (x) => <span className="whitespace-nowrap">{ago(Date.parse(x.lastMessageAt), now)}</span>,
+    },
+    {
+      key: "messages",
+      header: "Mensajes",
+      sortable: true,
+      align: "right",
+      cell: (x) => <span className="text-[15px] font-black text-ink">{n(x.userMessages)}</span>,
+    },
+  ];
 
   const header = (
     <>
@@ -181,44 +211,36 @@ export function NinetyView() {
             labelEvery={3}
           />
         </Panel>
-        <Panel title="Quiénes más le escriben" sub="En el período. La conversación está en el perfil de cada persona.">
-          {top.data?.items.length ? (
-            <ol className="divide-y divide-bo-line">
-              {top.data.items.map((x, i) => (
-                <li key={x.userId}>
-                  <Link
-                    href={`/tracking/users/${x.userId}?tab=ninety`}
-                    className="-mx-2 flex w-[calc(100%+16px)] press items-center gap-3 rounded-[10px] px-2 py-2.5 text-left hover:bg-bo-soft"
-                  >
-                    <span className="w-5 text-right text-[12.5px] font-bold text-ink-60 tnum">
-                      {(page - 1) * TOP_PAGE_SIZE + i + 1}
-                    </span>
-                    <UserAvatar id={x.userId} size={32} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-bold text-ink">{displayName(x)}</span>
-                      <span className="block text-[12px] font-medium text-ink-60">
-                        Último mensaje: {ago(Date.parse(x.lastMessageAt), now).toLowerCase()}
-                      </span>
-                    </span>
-                    <span className="text-[15px] font-black text-ink tnum">{n(x.userMessages)}</span>
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          ) : top.isPending ? (
-            <Skeleton className="h-[220px] rounded-[14px]" />
-          ) : (
-            <EmptyState compact title="Nadie le escribió en este período" />
-          )}
-          {top.data && (
-            <Pager
-              page={page}
-              totalPages={top.data.totalPages}
-              totalCount={top.data.totalCount}
-              onPage={(p) => setPaging({ range: filters.range, page: p })}
-              busy={top.isFetching}
+        <Panel
+          pad={false}
+          title="Quiénes más le escriben"
+          sub="En el período. La conversación está en el perfil de cada persona."
+        >
+          <div className="mt-4">
+            <DataTable
+              label="Quiénes más le escriben"
+              columns={topColumns}
+              rows={top.data?.items ?? []}
+              rowKey={(x) => x.userId}
+              sort={topSort}
+              onSort={(s) => {
+                setTopSort(s);
+                setPaging({ range: filters.range, page: 1 });
+              }}
+              onRowClick={(x) => router.push(`/tracking/users/${x.userId}?tab=ninety`)}
+              loading={top.isPending}
+              minWidth={420}
+              empty={<EmptyState compact title="Nadie le escribió en este período" />}
+              pagination={
+                top.data && {
+                  page,
+                  pageSize: top.data.pageSize,
+                  totalCount: top.data.totalCount,
+                  onPage: (p) => setPaging({ range: filters.range, page: p }),
+                }
+              }
             />
-          )}
+          </div>
         </Panel>
       </div>
     </>

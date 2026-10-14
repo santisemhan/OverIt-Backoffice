@@ -7,28 +7,29 @@ import { useState, type ReactNode } from "react";
 import { FilterBar } from "@/components/shell/FilterBar";
 import { Panel } from "@/components/ui/Card";
 import { MirrorColumns, SERIES, Stack100, WithTable } from "@/components/ui/charts";
-import { DataTable, Pager, type Column } from "@/components/ui/DataTable";
+import { DataTable, type Column, type SortState } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SearchField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/icons";
 import { Figure, StatTile, type FigureId } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PageSkeleton, Skeleton } from "@/components/ui/Skeleton";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Select } from "@/components/ui/Select";
 import { Num } from "@/components/ui/Stat";
 import { useTrackingFilters } from "@/lib/filters";
 import { ago, dayLong, dayShort, n, p, plural } from "@/lib/format";
-import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/queries";
+import { DEFAULT_PAGE_SIZE } from "@/lib/queries";
 import type { ToneId } from "@/lib/tones";
 import { dayKey, money, ts } from "@/lib/tracking/labels";
 import { useCancelReasons, useSubscriptionsMetrics, useUsers } from "@/lib/tracking/queries";
-import type { SubscriptionFilter, UserListItem } from "@/lib/tracking/types";
+import type { CancelReason, SubscriptionFilter, UserListItem } from "@/lib/tracking/types";
 import { ErrorPanel, NotMeasured, SubBadge, UserCell } from "../_ui";
 
 /*
  * Tracking → Subscriptions. The state of every subscription TODAY (does not follow the period): who renews (and who
  * renews this week), who canceled (and still has access) and who no longer has access. New/canceled per day and the
- * cancellation messages follow the period. "Suscriptores" comes from GET /users?subscription=<filter>&sort=expiresAt.
+ * cancellation messages follow the period. "Suscriptores" comes from GET /users?subscription=<filter>, by renewal date
+ * unless a column header picks another order.
  */
 
 type View = Exclude<SubscriptionFilter, "none">;
@@ -77,21 +78,28 @@ export function Subscriptions() {
   const [q, setQ] = useState("");
   const search = useDebounced(q);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [sort, setSort] = useState<SortState | null>(null);
   const [reasonsPage, setReasonsPage] = useState({ range: filters.range, page: 1 });
+  const [reasonsSort, setReasonsSort] = useState<SortState>({ key: "at", desc: true });
   const reasonsAt = reasonsPage.range === filters.range ? reasonsPage.page : 1;
-  const reasons = useCancelReasons(filters.range, reasonsAt, REASONS_PAGE_SIZE);
+  const reasons = useCancelReasons(filters.range, {
+    page: reasonsAt,
+    pageSize: REASONS_PAGE_SIZE,
+    sort: reasonsSort,
+  });
 
   const show = (v: View) => {
     const next = new URLSearchParams(params);
     next.set("view", v);
     router.replace(`${pathname}?${next}`, { scroll: false });
     setPage(1);
+    setSort(null);
   };
 
+  const listSort = sort ?? { key: "expiresAt", desc: VIEW_COPY[view].desc };
   const list = useUsers(
     { search, onboarding: null, subscription: view },
-    { page, pageSize, sort: { key: "expiresAt", desc: VIEW_COPY[view].desc } },
+    { page, pageSize: DEFAULT_PAGE_SIZE, sort: listSort },
   );
   const [now] = useState(() => Date.now());
 
@@ -121,10 +129,11 @@ export function Subscriptions() {
     grant: c.activeGrants,
   };
   const columns: Column<UserListItem>[] = [
-    { key: "user", header: "Suscriptor", cell: (u) => <UserCell u={u} /> },
+    { key: "name", header: "Suscriptor", sortable: true, cell: (u) => <UserCell u={u} /> },
     {
       key: "product",
       header: "Producto",
+      sortable: true,
       cell: (u) => (
         <span>
           <span className="block font-bold text-ink">{u.subscription.productId ?? "—"}</span>
@@ -133,8 +142,17 @@ export function Subscriptions() {
       ),
     },
     {
+      key: "subscribedAt",
+      header: "Se suscribió",
+      sortable: true,
+      cell: (u) => (
+        <span className="tnum">{u.subscription.subscribedAt ? dayLong(ts(u.subscription.subscribedAt)) : "—"}</span>
+      ),
+    },
+    {
       key: "expiresAt",
-      header: "Fecha",
+      header: "Renueva o vence",
+      sortable: true,
       cell: (u) => {
         const s = u.subscription;
         const exp = s.expiresAt ? ts(s.expiresAt) : null;
@@ -154,8 +172,9 @@ export function Subscriptions() {
       },
     },
     {
-      key: "status",
+      key: "subscription",
       header: "Estado",
+      sortable: true,
       align: "right",
       cell: (u) => (
         <SubBadge
@@ -165,6 +184,37 @@ export function Subscriptions() {
           grant={u.hasActiveGrant}
         />
       ),
+    },
+  ];
+
+  const reasonColumns: Column<CancelReason>[] = [
+    {
+      key: "message",
+      header: "Mensaje",
+      sortable: true,
+      cell: (r) => <span className="block font-medium break-words text-ink">“{r.message}”</span>,
+    },
+    {
+      key: "at",
+      header: "Fecha",
+      sortable: true,
+      cell: (r) => <span className="whitespace-nowrap">{dayLong(ts(r.at))}</span>,
+    },
+    {
+      key: "user",
+      header: "Usuario",
+      align: "right",
+      cell: (r) =>
+        r.userId ? (
+          <Link
+            href={`/tracking/users/${r.userId}`}
+            className="font-bold whitespace-nowrap text-purple hover:underline"
+          >
+            Ver usuario
+          </Link>
+        ) : (
+          "—"
+        ),
     },
   ];
 
@@ -326,44 +376,40 @@ export function Subscriptions() {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <Panel
+          pad={false}
           title="Por qué cancelan"
           sub={plural(d.cancelReasons.total, "mensaje en el período", "mensajes en el período")}
           info="Lo que escribieron en el formulario de cancelación de la app. No está ligado a una suscripción puntual."
         >
-          {!reasons.data ? (
-            <Skeleton className="h-[120px] rounded-[12px]" />
-          ) : reasons.data.items.length ? (
-            <ul className="space-y-2">
-              {reasons.data.items.map((r) => (
-                <li
-                  key={r.feedbackId}
-                  className="rounded-[12px] bg-bo-soft px-3.5 py-2.5 shadow-[inset_0_0_0_1px_#EFEDE7]"
-                >
-                  <p className="text-[13.5px] font-medium break-words text-ink">“{r.message}”</p>
-                  <p className="mt-1 text-[12px] font-medium text-ink-60">
-                    {dayLong(ts(r.at))}
-                    {r.userId && (
-                      <>
-                        {" · "}
-                        <Link href={`/tracking/users/${r.userId}`} className="font-bold text-purple hover:underline">
-                          Ver usuario
-                        </Link>
-                      </>
-                    )}
-                  </p>
-                </li>
-              ))}
-            </ul>
+          {reasons.isError && !reasons.data ? (
+            <div className="mt-4 border-t border-bo-line">
+              <EmptyState compact icon={<Icon.alert size={22} />} title="No pudimos cargar los motivos" />
+            </div>
           ) : (
-            <EmptyState compact title="Nadie dejó un motivo en este período" icon={<Icon.check size={22} />} />
-          )}
-          {reasons.data && (
-            <div className="-mx-5 mt-4 -mb-5">
-              <Pager
-                page={reasonsAt}
-                pageSize={reasons.data.pageSize}
-                totalCount={reasons.data.totalCount}
-                onPage={(next) => setReasonsPage({ range: filters.range, page: next })}
+            <div className="mt-4">
+              <DataTable
+                label="Por qué cancelan"
+                columns={reasonColumns}
+                rows={reasons.data?.items ?? []}
+                rowKey={(r) => r.feedbackId}
+                sort={reasonsSort}
+                onSort={(s) => {
+                  setReasonsSort(s);
+                  setReasonsPage({ range: filters.range, page: 1 });
+                }}
+                loading={reasons.isPending}
+                minWidth={520}
+                empty={
+                  <EmptyState compact title="Nadie dejó un motivo en este período" icon={<Icon.check size={22} />} />
+                }
+                pagination={
+                  reasons.data && {
+                    page: reasonsAt,
+                    pageSize: reasons.data.pageSize,
+                    totalCount: reasons.data.totalCount,
+                    onPage: (next) => setReasonsPage({ range: filters.range, page: next }),
+                  }
+                }
               />
             </div>
           )}
@@ -411,15 +457,6 @@ export function Subscriptions() {
             }))}
             onChange={show}
           />
-          <Select
-            label="Por página"
-            value={String(pageSize)}
-            options={PAGE_SIZE_OPTIONS.map((s) => ({ id: String(s), label: `${s} por página` }))}
-            onChange={(v) => {
-              setPageSize(Number(v));
-              setPage(1);
-            }}
-          />
           <SearchField
             label="Buscar en la lista"
             value={q}
@@ -441,6 +478,11 @@ export function Subscriptions() {
             columns={columns}
             rows={list.data?.items ?? []}
             rowKey={(u) => u.id}
+            sort={listSort}
+            onSort={(s) => {
+              setSort(s);
+              setPage(1);
+            }}
             onRowClick={(u) => router.push(`/tracking/users/${u.id}?tab=subscription`)}
             loading={list.isPending}
             stickyFirstColumn
