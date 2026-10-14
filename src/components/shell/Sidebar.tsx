@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,14 @@ import { cx } from "@/lib/cx";
 import { AREA, AREAS, SECTIONS, sectionHref, type AreaId, type NavItem } from "@/lib/nav";
 import { loadPref, savePref } from "@/lib/prefs";
 import { useNavBadges } from "./useNavBadges";
+
+function useSearchShortcut() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K"),
+    () => "Ctrl K",
+  );
+}
 
 /*
  * Desktop sidebar (and the content of the mobile drawer): a violet rail with the areas, settings and the account,
@@ -41,6 +49,7 @@ export function Sidebar({
   const router = useRouter();
   const queryClient = useQueryClient();
   const badges = useNavBadges();
+  const shortcut = useSearchShortcut();
   const area = AREA[areaId];
   const pending = (badges.inbox ?? 0) + (badges.review ?? 0);
 
@@ -176,7 +185,7 @@ export function Sidebar({
             <Icon.search size={17} />
             <span className="flex-1">Buscar</span>
             <kbd className="rounded-[6px] bg-white px-1.5 py-0.5 text-[11px] font-bold text-ink-60 shadow-[inset_0_0_0_1px_#E3E0D9]">
-              ⌘K
+              {shortcut}
             </kbd>
           </button>
         </div>
