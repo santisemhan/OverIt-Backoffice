@@ -293,14 +293,7 @@ function Journey({ u }: { u: UserDetail }) {
       ? { label: "Se registró", value: dayShort(ts(u.createdAt)), sub: ago(ts(u.createdAt), now), state: "done" }
       : { label: "Se registró", value: "—", sub: "sin fecha", state: "done" },
     u.status === "ACTIVE"
-      ? {
-          label: "Onboarding",
-          value: "Completó",
-          sub: u.onboarding?.commitmentSignedAt
-            ? `firmó el ${dayShort(ts(u.onboarding.commitmentSignedAt))}`
-            : "las dos partes",
-          state: "ok",
-        }
+      ? { label: "Onboarding", value: "Completó", sub: "", state: "ok" }
       : u.status === "PENDING_SECOND_ONBOARDING"
         ? { label: "Onboarding", value: "A medias", sub: "", state: "half" }
         : { label: "Onboarding", value: "No lo hizo", sub: "sin respuestas", state: "fail" },
