@@ -19,20 +19,28 @@ import { cx } from "@/lib/cx";
 import { ago, dateTime, n, plural } from "@/lib/format";
 import {
   useModerationComments,
+  useModerationCounts,
   useModerationPosts,
   useModerationTotal,
   usePostComments,
   type ModerationListParams,
 } from "@/lib/moderation/queries";
-import type { ModerationComment, ModerationKind, ModerationPost, ModerationStatus } from "@/lib/moderation/types";
-import { reasonLabel } from "../_shared/labels";
+import type {
+  ModerationComment,
+  ModerationFlag,
+  ModerationKind,
+  ModerationPost,
+  ModerationStatus,
+} from "@/lib/moderation/types";
+import { FLAG, reasonLabel } from "../_shared/labels";
 import { displayName, Pager, useDebounced, useNow, UserAvatar } from "../_shared/ui";
 import { useModeration } from "../_shared/useModeration";
 
 /*
  * Moderation → Community. Three views as colored KPI tiles (Para revisar / Publicadas / Eliminadas), publications or
- * comments, search and an optional ?user=<userId> filter. Removing asks first; restoring and "No infringe" are
- * immediate with a toast. Every action resolves the open reports and lands in the Historial.
+ * comments, search and an optional ?user=<userId> filter. "Para revisar" holds what was reported and what the AI
+ * moderator flagged, in the server's order ("Posible riesgo" first). Removing asks first; restoring and "No infringe"
+ * are immediate with a toast. Every action resolves the open reports and lands in the Historial.
  */
 
 const PAGE_SIZE = 20;
@@ -65,6 +73,8 @@ export function CommunityView() {
   const reviewCount = sum(reviewP.data, reviewC.data);
   const deletedCount = sum(delP.data, delC.data);
   const fmt = (v?: number) => (v === undefined ? "—" : n(v));
+  const counts = useModerationCounts().data;
+  const atRisk = userId || !counts ? 0 : counts.postsAtRisk + counts.commentsAtRisk;
 
   const pick = (s: ModerationStatus) => {
     setStatus(s);
@@ -101,10 +111,17 @@ export function CommunityView() {
           icon={<Icon.flag size={15} />}
           label="Para revisar"
           value={fmt(reviewCount)}
+          extra={
+            atRisk > 0 && (
+              <Badge tone="bad" icon={<Icon.alert size={12} />}>
+                {`${n(atRisk)} en riesgo`}
+              </Badge>
+            )
+          }
           note={
             reviewP.data !== undefined && reviewC.data !== undefined
               ? `${plural(reviewP.data, "publicación", "publicaciones")} · ${plural(reviewC.data, "comentario", "comentarios")}`
-              : "Con reportes sin resolver"
+              : "Reportes y alertas automáticas"
           }
           onClick={() => pick("review")}
           selected={status === "review"}
@@ -130,6 +147,19 @@ export function CommunityView() {
           selected={status === "deleted"}
         />
       </div>
+      {atRisk > 0 && status !== "deleted" && (
+        <div className="mb-5 flex items-start gap-3 rounded-[16px] bg-bad-bg px-4 py-3.5 text-bad">
+          <Icon.alert size={20} className="mt-0.5 shrink-0" />
+          <p className="text-[14px] leading-[1.5] font-medium">
+            <b className="font-bold">
+              {atRisk === 1
+                ? "1 publicación o comentario puede ser de alguien en riesgo."
+                : `${n(atRisk)} publicaciones o comentarios pueden ser de alguien en riesgo.`}
+            </b>{" "}
+            Van primero en “Para revisar”.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
@@ -242,7 +272,7 @@ export function CommunityView() {
                   search
                     ? "Probá con otra palabra, un nombre o un email."
                     : status === "review"
-                      ? "Cuando alguien reporte algo en la app, aparece acá."
+                      ? "Cuando alguien reporte algo o una publicación dispare una alerta, aparece acá."
                       : undefined
                 }
               />
@@ -258,7 +288,8 @@ export function CommunityView() {
                 reportes.
               </li>
               <li>
-                <b className="font-bold text-ink">No infringe</b> resuelve los reportes y la deja publicada.
+                <b className="font-bold text-ink">No infringe</b> resuelve los reportes y la alerta, y la deja
+                publicada.
               </li>
               <li>
                 <b className="font-bold text-ink">Cambiar nombre</b> cambia cómo se ve esa persona en la comunidad.
@@ -268,12 +299,20 @@ export function CommunityView() {
               </li>
             </ul>
           </Panel>
-          <Panel title="Alertas automáticas" sub="Todavía no disponibles.">
-            <p className="text-[13px] leading-[1.5] font-medium text-ink-70">
-              Cada publicación pasa por un filtro automático al crearse y lo que no lo supera nunca se guarda. Por eso
-              acá solo llega lo que reporta la comunidad. Las marcas como “posible riesgo” o “teléfono o link” no se
-              calculan sobre lo publicado.
-            </p>
+          <Panel
+            title="Alertas automáticas"
+            sub="Al publicar, una IA lee cada texto: lo grave no se publica y lo dudoso se publica con una alerta para que lo mires. No borra nada sola."
+          >
+            <ul className="space-y-3">
+              {(Object.keys(FLAG) as ModerationFlag[]).map((f) => (
+                <li key={f}>
+                  <Badge tone={FLAG[f].tone} size="sm">
+                    {FLAG[f].label}
+                  </Badge>
+                  <p className="mt-1 text-[12.5px] leading-[1.45] font-medium text-ink-60">{FLAG[f].help}</p>
+                </li>
+              ))}
+            </ul>
           </Panel>
         </aside>
       </div>
@@ -293,7 +332,9 @@ function ItemCard(
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const removed = !!item.removedAt;
-  const pending = !removed && item.openReports > 0;
+  const reported = !removed && item.openReports > 0;
+  const flagged = !removed && !!item.flag && !item.reviewedAt;
+  const pending = reported || flagged;
   const target = { kind, id: item.id };
   const profile = `/tracking/users/${item.author.id}`;
   const openReasons = item.reportsDetail.filter((r) => r.status !== "Resolved");
@@ -382,12 +423,13 @@ function ItemCard(
             {`${kind === "posts" ? "Eliminada" : "Eliminado"} ${ago(Date.parse(item.removedAt!), now).toLowerCase()}`}
           </Badge>
         )}
-        {pending && (
+        {item.flag && !removed && <FlagBadge flag={item.flag} />}
+        {reported && (
           <Badge size="sm" tone="warn" icon={<Icon.flag size={12} />}>
             {plural(item.openReports, "reporte", "reportes")}
           </Badge>
         )}
-        {pending &&
+        {reported &&
           reasons.map((r) => (
             <Badge key={r} size="sm" tone={r === "SelfHarm" ? "bad" : "neutral"}>
               {reasonLabel(r)!}
@@ -416,11 +458,18 @@ function ItemCard(
       {removed && item.removalReason && (
         <p className="mt-2 text-[12.5px] font-medium text-ink-60">Motivo: {item.removalReason}</p>
       )}
-      {pending && reasons.includes("SelfHarm") && (
+      {flagged && item.flag === "SelfHarm" ? (
         <p className="mt-3 rounded-[12px] bg-bad-bg px-3.5 py-2.5 text-[13px] leading-[1.5] font-medium text-bad">
-          <b className="font-bold">Reportada por autolesión.</b> No la borres sin revisar: conviene escribirle a la
-          persona con recursos de ayuda.
+          <b className="font-bold">Posible riesgo.</b> {FLAG.SelfHarm.help}
         </p>
+      ) : (
+        reported &&
+        reasons.includes("SelfHarm") && (
+          <p className="mt-3 rounded-[12px] bg-bad-bg px-3.5 py-2.5 text-[13px] leading-[1.5] font-medium text-bad">
+            <b className="font-bold">Reportada por autolesión.</b> No la borres sin revisar: conviene escribirle a la
+            persona con recursos de ayuda.
+          </p>
+        )
       )}
       {details.length > 0 && (
         <ul className="mt-3 space-y-1">
@@ -455,7 +504,7 @@ function ItemCard(
               Sin comentarios
             </span>
           ))}
-        {item.reports > 0 && !pending && (
+        {item.reports > 0 && !reported && (
           <span className="inline-flex items-center gap-1.5">
             <Icon.flag size={16} />
             {plural(item.reports, "reporte", "reportes")} (resueltos)
@@ -493,6 +542,11 @@ function PostThread({ postId, mod, now }: { postId: string; mod: Mod; now: numbe
                     {` · ${ago(Date.parse(c.createdAt), now)}`}
                     {c.openReports > 0 && !removed && ` · ${plural(c.openReports, "reporte", "reportes")}`}
                   </p>
+                  {c.flag && !removed && (
+                    <div className="mt-1">
+                      <FlagBadge flag={c.flag} />
+                    </div>
+                  )}
                   <p
                     className={cx(
                       "mt-0.5 text-[14px] leading-[1.45] font-medium whitespace-pre-line text-ink",
@@ -525,5 +579,13 @@ function PostThread({ postId, mod, now }: { postId: string; mod: Mod; now: numbe
         <p className="text-[13px] font-medium text-ink-60">Sin comentarios.</p>
       )}
     </div>
+  );
+}
+
+function FlagBadge({ flag }: { flag: ModerationFlag }) {
+  return (
+    <Badge size="sm" tone={FLAG[flag].tone} icon={<Icon.alert size={12} />}>
+      {FLAG[flag].label}
+    </Badge>
   );
 }

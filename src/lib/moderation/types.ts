@@ -3,6 +3,8 @@
 export type InboxStatus = "New" | "InReview" | "Resolved";
 export type InboxType = "report" | "bug" | "suggestion" | "other" | "subscriptionCancellation" | "accountDeletion";
 export type ReportReason = "Spam" | "Harassment" | "Hate" | "Inappropriate" | "SelfHarm" | "Other";
+export type ModerationFlag =
+  "Harassment" | "Hate" | "Sexual" | "Violence" | "SelfHarm" | "Spam" | "PersonalData" | "Other";
 export type ModerationStatus = "review" | "all" | "deleted";
 export type ModerationKind = "posts" | "comments";
 
@@ -37,6 +39,7 @@ export interface ModerationPost {
   removedByAdminId: string | null;
   removalReason: string | null;
   reviewedAt: string | null;
+  flag: ModerationFlag | null;
 }
 
 export type ModerationComment = Omit<ModerationPost, "comments" | "isAnonymous" | "language"> & {
@@ -47,6 +50,8 @@ export type ModerationComment = Omit<ModerationPost, "comments" | "isAnonymous" 
 export interface ModerationCounts {
   postsToReview: number;
   commentsToReview: number;
+  postsAtRisk: number;
+  commentsAtRisk: number;
   inboxNew: number;
 }
 
