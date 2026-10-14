@@ -5,10 +5,11 @@ import { cx } from "@/lib/cx";
 
 /* ═══════════════ Etiquetas de estado (siempre con texto; el color nunca va solo) ═══════════════ */
 
-export type Tone = "ok" | "warn" | "bad" | "info" | "neutral" | "lime" | "ink";
+export type Tone = "ok" | "warn" | "bad" | "info" | "neutral" | "lime" | "ink" | "yellow";
 const TONES: Record<Tone, string> = {
   ok: "bg-ok-bg text-ok",
   warn: "bg-warn-bg text-warn",
+  yellow: "bg-[#FDF1CC] text-[#8A5F00]",
   bad: "bg-bad-bg text-bad",
   info: "bg-purple-10 text-info",
   neutral: "bg-[#F0EEE9] text-ink-70",

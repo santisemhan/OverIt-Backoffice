@@ -86,12 +86,12 @@ export function OnbBadge({ status, size = "md" }: { status: UserStatus; size?: "
     );
   if (status === "PENDING_SECOND_ONBOARDING")
     return (
-      <Badge size={size} tone="info">
-        Le falta la segunda parte
+      <Badge size={size} tone="yellow" icon={<Icon.clock size={12} strokeWidth={2.6} />}>
+        A medias
       </Badge>
     );
   return (
-    <Badge size={size} tone="bad">
+    <Badge size={size} tone="bad" icon={<Icon.x size={12} strokeWidth={2.6} />}>
       Sin completar
     </Badge>
   );

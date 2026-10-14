@@ -283,7 +283,7 @@ function Tag({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 
 /* ─────────── Journey ─────────── */
 
-type StepState = "done" | "fail" | "todo" | "now";
+type StepState = "done" | "ok" | "half" | "fail" | "todo" | "now";
 
 function Journey({ u }: { u: UserDetail }) {
   const [now] = useState(() => Date.now());
@@ -299,10 +299,10 @@ function Journey({ u }: { u: UserDetail }) {
           sub: u.onboarding?.commitmentSignedAt
             ? `firmó el ${dayShort(ts(u.onboarding.commitmentSignedAt))}`
             : "las dos partes",
-          state: "done",
+          state: "ok",
         }
       : u.status === "PENDING_SECOND_ONBOARDING"
-        ? { label: "Onboarding", value: "A medias", sub: "le falta la segunda parte", state: "fail" }
+        ? { label: "Onboarding", value: "A medias", sub: "llegó a la paywall, no pagó", state: "half" }
         : { label: "Onboarding", value: "No lo hizo", sub: "sin respuestas", state: "fail" },
     s
       ? { label: "Pagó", value: s.productId ?? "Suscripción", sub: dayShort(ts(s.firstSeenAt)), state: "done" }
@@ -324,6 +324,14 @@ function Journey({ u }: { u: UserDetail }) {
       <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-purple text-white">
         <Icon.check size={13} strokeWidth={3} />
       </span>
+    ) : st === "ok" ? (
+      <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-ok text-white">
+        <Icon.check size={13} strokeWidth={3} />
+      </span>
+    ) : st === "half" ? (
+      <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[#E5A50A] text-white">
+        <Icon.clock size={13} strokeWidth={2.5} />
+      </span>
     ) : st === "fail" ? (
       <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-bad text-white">
         <Icon.x size={13} strokeWidth={3} />
@@ -341,7 +349,18 @@ function Journey({ u }: { u: UserDetail }) {
         <li key={st.label} className="min-w-0">
           {node(st.state)}
           <p className="mt-2 text-[12px] font-bold text-ink-60">{st.label}</p>
-          <p className={cx("truncate text-[15px] font-black", st.state === "fail" ? "text-bad" : "text-ink")}>
+          <p
+            className={cx(
+              "truncate text-[15px] font-black",
+              st.state === "fail"
+                ? "text-bad"
+                : st.state === "half"
+                  ? "text-[#9A6A00]"
+                  : st.state === "ok"
+                    ? "text-ok"
+                    : "text-ink",
+            )}
+          >
             {st.value}
           </p>
           <p className="truncate text-[12.5px] font-medium text-ink-60">{st.sub}</p>
@@ -402,7 +421,7 @@ function OnboardingTab({ u }: { u: UserDetail }) {
             <p className="text-[13.5px] font-medium text-ink-60">No cargó motivos.</p>
           )}
         </Panel>
-        <Panel title="Privado" tone="sand">
+        <Panel title="Más datos">
           <dl className="divide-y divide-bo-line">
             <div className="py-3 first:pt-0">
               <dt className="text-[12.5px] font-bold text-ink-60">El nombre de su ex</dt>
