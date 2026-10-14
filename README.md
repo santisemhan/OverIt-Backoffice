@@ -98,11 +98,11 @@ src/
     globals.css              Tailwind v4 + design tokens (@theme) + utilities (press, skeleton, tnum…)
     login/                   Admin login
     (app)/                   Authenticated area (AuthGate + AppShell)
-      trackeo/ moderacion/ contenido/   One folder per section
+      tracking/ moderation/ content/   One folder per section
   components/
     AuthProvider.tsx         Session (cookie) + QueryClient + toasts; useAuth, useRequireAdmin
     Logo.tsx                 Wordmark and the brand star pattern
-    shell/                   Sidebar, mobile top bar/drawer, ⌘K palette, Trackeo filter bar
+    shell/                   Sidebar, mobile top bar/drawer, ⌘K palette, Tracking filter bar
     ui/                      Design system primitives (see below)
   fonts/                     Satoshi, Isidora
   lib/
@@ -110,7 +110,7 @@ src/
     session.ts               Cookie session + external store for useSyncExternalStore
     queries.ts mutations.ts  React Query hooks (one per endpoint)
     nav.ts                   Areas → groups → sections (single source of navigation)
-    filters.ts               Trackeo filters in the URL (periodo, pais, idioma)
+    filters.ts               Tracking filters in the URL (period, country, language)
     format.ts                es-AR numbers, percentages, dates
     tones.ts cx.ts a11y.ts prefs.ts
 public/

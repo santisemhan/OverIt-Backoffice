@@ -30,7 +30,7 @@ export function Sidebar({
 }: {
   areaId: AreaId;
   sectionId: string;
-  /** Section href, with the Trackeo filters carried over when relevant. */
+  /** Section href, with the Tracking filters carried over when relevant. */
   hrefFor: (area: AreaId, section: string) => string;
   onSearch: () => void;
   onLogout: () => void;
@@ -58,7 +58,7 @@ export function Sidebar({
       <div className="on-violet relative flex w-[72px] shrink-0 flex-col items-center overflow-hidden bg-purple pt-[max(16px,env(safe-area-inset-top))] pb-4 text-white">
         <Stars />
         <Link
-          href={sectionHref("trackeo", "resumen")}
+          href={sectionHref("tracking", "overview")}
           onClick={onClose}
           aria-label="Over It Back Office: ir al Resumen"
           className="relative press rounded-[13px]"
@@ -75,7 +75,7 @@ export function Sidebar({
         <nav aria-label="Áreas" className="relative mt-6 flex flex-col items-center gap-2">
           {AREAS.map((a) => {
             const on = a.id === areaId;
-            const dot = a.id === "moderacion" && !on && pending > 0;
+            const dot = a.id === "moderation" && !on && pending > 0;
             return (
               <button
                 key={a.id}

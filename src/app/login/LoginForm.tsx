@@ -12,7 +12,7 @@ import { Icon } from "@/components/ui/icons";
 import { describeError } from "@/lib/api";
 import { useAdminLogin } from "@/lib/mutations";
 
-const HOME = "/trackeo/resumen";
+const HOME = "/tracking/overview";
 
 /* Only same-origin paths are honoured, so ?next= cannot bounce the user to another site. */
 function safeNext(next: string | null) {

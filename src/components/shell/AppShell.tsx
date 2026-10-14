@@ -26,9 +26,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [palette, setPalette] = useState(false);
   const [logout, setLogout] = useState(false);
 
-  /* Trackeo links keep the current period/country/language */
+  /* Tracking links keep the current period/country/language */
   const query = filtersQuery(params);
-  const hrefFor = useCallback((a: AreaId, s: string) => sectionHref(a, s) + (a === "trackeo" ? query : ""), [query]);
+  const hrefFor = useCallback((a: AreaId, s: string) => sectionHref(a, s) + (a === "tracking" ? query : ""), [query]);
 
   /* Each area remembers the last section you looked at */
   useEffect(() => {

@@ -3,14 +3,14 @@ import type { SortState } from "@/components/ui/DataTable";
 /*
  * Read hooks live here, built with `queryOptions` so keys and fetchers travel together:
  *
- *   const usersQuery = (filters: TrackeoFilters, list: ListParams) =>
+ *   const usersQuery = (filters: TrackingFilters, list: ListParams) =>
  *     queryOptions({
- *       queryKey: ["trackeo", "users", filters, list],
+ *       queryKey: ["tracking", "users", filters, list],
  *       queryFn: ({ signal }) => api<PagedResponse<UserRow>>("/api/backoffice/users", { query: {...}, signal }),
  *     });
  *   export const useUsers = (...) => useQuery(usersQuery(...));
  *
- * Keys start with the area ("trackeo" | "moderacion" | "contenido"), then the resource, then every input that
+ * Keys start with the area ("tracking" | "moderation" | "content"), then the resource, then every input that
  * changes the result. Mutations invalidate by prefix.
  */
 

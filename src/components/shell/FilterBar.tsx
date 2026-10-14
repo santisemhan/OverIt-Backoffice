@@ -6,7 +6,7 @@ import { Select } from "@/components/ui/Select";
 import { Segmented } from "@/components/ui/Tabs";
 import { Icon } from "@/components/ui/icons";
 import { cx } from "@/lib/cx";
-import { COUNTRIES, LANGS, RANGES, useTrackeoFilters, type Lang, type RangeId } from "@/lib/filters";
+import { COUNTRIES, LANGS, RANGES, useTrackingFilters, type Lang, type RangeId } from "@/lib/filters";
 import { n } from "@/lib/format";
 
 /** Downloads per option, shown next to each choice when the page has them. */
@@ -26,7 +26,7 @@ const Code = ({ c }: { c: string }) => (
 const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 /*
- * Trackeo filters: period, country and language (stored in the URL, see lib/filters.ts).
+ * Tracking filters: period, country and language (stored in the URL, see lib/filters.ts).
  *   - Desktop (≥1024px): a bar that floats at the top while scrolling.
  *   - Phone/tablet: one "Filtros" button with the current choice; opens a bottom sheet.
  * Render it as a sibling of the page header (not inside a card) so it can stick for the whole page.
@@ -40,7 +40,7 @@ export function FilterBar({
   lang?: boolean;
   counts?: FilterCounts;
 }) {
-  const { filters: f, set } = useTrackeoFilters();
+  const { filters: f, set } = useTrackingFilters();
   const [sheet, setSheet] = useState(false);
   const [q, setQ] = useState("");
   const sentinel = useRef<HTMLDivElement>(null);

@@ -2,8 +2,8 @@
 
 import { createElement, useEffect, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/Avatar";
-import { lookOf } from "@/lib/trackeo/labels";
-import { useUsers } from "@/lib/trackeo/queries";
+import { lookOf } from "@/lib/tracking/labels";
+import { useUsers } from "@/lib/tracking/queries";
 
 /** A result row of the ⌘K palette. */
 export interface PaletteItem {
@@ -37,7 +37,7 @@ export function usePaletteUsers(query: string): { items: PaletteItem[]; loading:
     label: u.name?.trim() || "Sin nombre",
     sub: u.email,
     icon: createElement(Avatar, { look: lookOf(u.id), size: 26, muted: !u.name }),
-    href: `/trackeo/usuarios/${u.id}`,
+    href: `/tracking/users/${u.id}`,
   }));
   return { items, loading: q.isFetching || search !== query };
 }

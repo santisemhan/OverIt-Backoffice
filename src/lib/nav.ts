@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/icons";
  * here and create its page at `/${area}/${section}`.
  */
 
-export type AreaId = "trackeo" | "moderacion" | "contenido";
+export type AreaId = "tracking" | "moderation" | "content";
 
 /** Counters shown next to a section. Values come from `useNavBadges` (components/shell/useNavBadges.ts). */
 export type NavBadge = "review" | "inbox" | "challenges" | "breaths" | "articles" | "phrases" | "facts";
@@ -36,16 +36,16 @@ export interface Area {
 
 export const AREAS: Area[] = [
   {
-    id: "trackeo",
+    id: "tracking",
     label: "Trackeo",
     icon: Icon.overview,
     hint: "Números de Over It: descargas, onboarding, ventas y uso",
     groups: [
       {
-        id: "negocio",
+        id: "business",
         label: "Negocio",
         items: [
-          { id: "resumen", label: "Resumen", icon: Icon.overview, hint: "Lo más importante en una pantalla" },
+          { id: "overview", label: "Resumen", icon: Icon.overview, hint: "Lo más importante en una pantalla" },
           {
             id: "onboarding",
             label: "Onboarding",
@@ -53,7 +53,7 @@ export const AREAS: Area[] = [
             hint: "Pantalla por pantalla: quién llega y quién se va",
           },
           {
-            id: "suscripciones",
+            id: "subscriptions",
             label: "Suscripciones",
             icon: Icon.card,
             hint: "Quién renueva, quién cancela y por qué",
@@ -61,34 +61,34 @@ export const AREAS: Area[] = [
         ],
       },
       {
-        id: "personas",
+        id: "people",
         label: "Personas",
         items: [
-          { id: "usuarios", label: "Usuarios", icon: Icon.users, hint: "Cada persona y todo lo que hizo" },
-          { id: "uso", label: "Uso de la app", icon: Icon.leaf, hint: "Qué usan adentro de la app" },
+          { id: "users", label: "Usuarios", icon: Icon.users, hint: "Cada persona y todo lo que hizo" },
+          { id: "usage", label: "Uso de la app", icon: Icon.leaf, hint: "Qué usan adentro de la app" },
         ],
       },
     ],
   },
   {
-    id: "moderacion",
+    id: "moderation",
     label: "Moderación",
     icon: Icon.shield,
     hint: "Comunidad, reportes y conversaciones con Ninety",
     groups: [
       {
-        id: "revision",
+        id: "review",
         label: "Revisión",
         items: [
           {
-            id: "comunidad",
+            id: "community",
             label: "Comunidad",
             icon: Icon.community,
             badge: "review",
             hint: "Lo que publican y comentan",
           },
           {
-            id: "reportes",
+            id: "reports",
             label: "Reportes y feedback",
             icon: Icon.inbox,
             badge: "inbox",
@@ -102,11 +102,11 @@ export const AREAS: Area[] = [
         items: [{ id: "ninety", label: "Ninety", icon: Icon.chat, hint: "Cómo usan el chatbot" }],
       },
       {
-        id: "equipo",
+        id: "team",
         label: "Equipo",
         items: [
           {
-            id: "historial",
+            id: "history",
             label: "Historial",
             icon: Icon.history,
             hint: "Cada cambio del equipo, con quién y cuándo",
@@ -116,17 +116,17 @@ export const AREAS: Area[] = [
     ],
   },
   {
-    id: "contenido",
+    id: "content",
     label: "Contenido",
     icon: Icon.book,
     hint: "Lo que se ve en la app: retos, recursos y textos",
     groups: [
       {
-        id: "camino",
+        id: "path",
         label: "Camino de 90 días",
         items: [
           {
-            id: "retos",
+            id: "challenges",
             label: "Retos diarios",
             icon: Icon.flame,
             badge: "challenges",
@@ -135,25 +135,25 @@ export const AREAS: Area[] = [
         ],
       },
       {
-        id: "recursos",
+        id: "resources",
         label: "Recursos",
         items: [
           {
-            id: "respiraciones",
+            id: "breathings",
             label: "Respiraciones",
             icon: Icon.wind,
             badge: "breaths",
             hint: "Ejercicios de respiración guiados",
           },
           {
-            id: "articulos",
+            id: "articles",
             label: "Artículos & Tips",
             icon: Icon.book,
             badge: "articles",
             hint: "Lecturas cortas con bloques",
           },
           {
-            id: "frases",
+            id: "phrases",
             label: "Frases",
             icon: Icon.quote,
             badge: "phrases",
@@ -165,7 +165,7 @@ export const AREAS: Area[] = [
         id: "home",
         label: "Home",
         items: [
-          { id: "datos", label: "Datos científicos", icon: Icon.brain, badge: "facts", hint: "Uno por día en la home" },
+          { id: "facts", label: "Datos científicos", icon: Icon.brain, badge: "facts", hint: "Uno por día en la home" },
         ],
       },
     ],
@@ -182,7 +182,7 @@ export const SECTIONS = Object.fromEntries(AREAS.map((a) => [a.id, a.groups.flat
 
 export const sectionHref = (area: AreaId, section: string) => `/${area}/${section}`;
 
-/** Area and section for a pathname such as /trackeo/usuarios/123. Falls back to the first section of Trackeo. */
+/** Area and section for a pathname such as /tracking/users/123. Falls back to the first section of Tracking. */
 export function locate(pathname: string): { area: Area; section: NavItem } {
   const [a, s] = pathname.split("/").filter(Boolean);
   const area = AREAS.find((x) => x.id === a) ?? AREAS[0];
@@ -190,7 +190,7 @@ export function locate(pathname: string): { area: Area; section: NavItem } {
   return { area, section };
 }
 
-/** Lookup for a page header: `section("trackeo", "usuarios")`. Throws on a typo so it fails at build time. */
+/** Lookup for a page header: `section("tracking", "users")`. Throws on a typo so it fails at build time. */
 export function section(area: AreaId, id: string): NavItem {
   const item = SECTIONS[area].find((x) => x.id === id);
   if (!item) throw new Error(`Unknown section ${area}/${id}`);

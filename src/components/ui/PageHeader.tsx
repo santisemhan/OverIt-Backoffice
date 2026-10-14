@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Icon } from "./icons";
 
-/* Page title + actions. The Trackeo filter bar goes right below it, as a sibling. */
+/* Page title + actions. The Tracking filter bar goes right below it, as a sibling. */
 export function PageHeader({
   title,
   sub,

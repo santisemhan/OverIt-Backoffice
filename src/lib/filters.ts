@@ -4,21 +4,21 @@ import { useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 /*
- * Global Trackeo filters (period, country, language), stored in the URL search params so every view is a shareable
- * link and survives a reload. Defaults are omitted from the URL: /trackeo/resumen means "Histórico, all, all".
+ * Global Tracking filters (period, country, language), stored in the URL search params so every view is a shareable
+ * link and survives a reload. Defaults are omitted from the URL: /tracking/overview means "Histórico, all, all".
  */
 
 export type RangeId = "all" | "90" | "30" | "7";
 export type Lang = "es" | "en";
 
-export interface TrackeoFilters {
+export interface TrackingFilters {
   range: RangeId;
   /** ISO 3166-1 alpha-2, or "all". */
   country: string;
   lang: Lang | "all";
 }
 
-export const DEFAULT_FILTERS: TrackeoFilters = { range: "all", country: "all", lang: "all" };
+export const DEFAULT_FILTERS: TrackingFilters = { range: "all", country: "all", lang: "all" };
 
 /* Histórico first (the team looks at it first), then the short periods. */
 export const RANGES: { id: RangeId; label: string; days: number | null }[] = [
@@ -54,9 +54,9 @@ export const COUNTRIES: { code: string; name: string }[] = [
 ];
 export const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code;
 
-const PARAM = { range: "periodo", country: "pais", lang: "idioma" } as const;
+const PARAM = { range: "period", country: "country", lang: "language" } as const;
 
-function parseFilters(params: URLSearchParams): TrackeoFilters {
+function parseFilters(params: URLSearchParams): TrackingFilters {
   const range = params.get(PARAM.range);
   const country = params.get(PARAM.country);
   const lang = params.get(PARAM.lang);
@@ -67,18 +67,18 @@ function parseFilters(params: URLSearchParams): TrackeoFilters {
   };
 }
 
-/** Read and update the Trackeo filters. `set` replaces history (filters are not navigation steps). */
-export function useTrackeoFilters() {
+/** Read and update the Tracking filters. `set` replaces history (filters are not navigation steps). */
+export function useTrackingFilters() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const filters = useMemo(() => parseFilters(params), [params]);
 
   const set = useCallback(
-    (patch: Partial<TrackeoFilters>) => {
+    (patch: Partial<TrackingFilters>) => {
       const next = { ...filters, ...patch };
       const q = new URLSearchParams(params);
-      for (const key of Object.keys(PARAM) as (keyof TrackeoFilters)[]) {
+      for (const key of Object.keys(PARAM) as (keyof TrackingFilters)[]) {
         if (next[key] === DEFAULT_FILTERS[key]) q.delete(PARAM[key]);
         else q.set(PARAM[key], next[key]);
       }
@@ -91,7 +91,7 @@ export function useTrackeoFilters() {
   return { filters, set };
 }
 
-/** The filter part of the current query string, to carry filters across Trackeo links. */
+/** The filter part of the current query string, to carry filters across Tracking links. */
 export function filtersQuery(params: URLSearchParams): string {
   const q = new URLSearchParams();
   for (const key of Object.values(PARAM)) {

@@ -7,14 +7,14 @@ import { FilterBar } from "./FilterBar";
 
 /*
  * Temporary body for sections that are not implemented yet: the real header (title and hint from lib/nav.ts), the
- * Trackeo filters when they apply and an empty state. Replace the whole page when the section is built.
+ * Tracking filters when they apply and an empty state. Replace the whole page when the section is built.
  */
 export function SectionPlaceholder({
   area,
   section,
   title,
   sub,
-  filters = area === "trackeo",
+  filters = area === "tracking",
   back,
 }: {
   area: AreaId;
