@@ -383,7 +383,7 @@ type AuditEntry = {
 
 Five collections. All share: `GET` list (includes drafts), `GET /{id}`, `POST` create → `{ id }`,
 `PUT /{id}` full update → `204`, `DELETE /{id}` → `204`, `PUT /order` → `204`.
-The app only sees `Published` items. List query: `language` (default `es`), `status`
+The app only sees `Published` items. List query: `language` (required, `es` or `en`), `status`
 (`Published`|`Draft`), `search`. Lists are **not paged** (ordered by `sortOrder`).
 
 `PUT /order` body: `{ language: string; ids: string[] }` — the full ordered list of ids for that
@@ -402,7 +402,7 @@ type Challenge = Common & {
   activeUsersToday: number; // users whose current plan day equals `day`
 };
 type ChallengeInput = { title: string; action: string; type: "InApp" | "External";
-  inputDefinitions?: { key?: string; label: string }[]; language?: string; status?: ContentStatus;
+  inputDefinitions?: { key?: string; label: string }[]; language: string; status?: ContentStatus;
   position?: number };     // create only: 0-based index to insert at (default: end)
 ```
 
@@ -415,7 +415,7 @@ already have it assigned — switch it to `Draft` instead.
 ```ts
 type Breathing = Common & { title: string; description: string; type: "Relax" | "Sleep" | "Crisis";
   cicle: { action: "Inhale" | "Hold" | "Exhale"; durationInSeconds: number }[] };
-type BreathingInput = Omit<Breathing, "id" | "sortOrder" | "updatedAt" | "status" | "language"> & { language?: string; status?: ContentStatus };
+type BreathingInput = Omit<Breathing, "id" | "sortOrder" | "updatedAt" | "status" | "language"> & { language: string; status?: ContentStatus };
 ```
 
 ### Resources (articles & tips) — `/api/backoffice/content/resources`
@@ -444,14 +444,14 @@ type ScientificFact = Common & { text: string };
 ```
 
 Inputs for resources/phrases/facts are the item fields minus `id`, `sortOrder`, `updatedAt`
-and computed counts; `language` and `status` optional (defaults `es`, `Published`).
+and computed counts; `language` is required on create, `status` is optional (default `Published`).
 
 Rules for every collection:
 
 - `POST` → `200 { id: string }`. `PUT` → `204`. `DELETE` → `204`.
-- `language` is fixed at creation and ignored on `PUT`. `status` omitted on `PUT` keeps the
+- `language` is required on `POST` (400 without it), fixed at creation and ignored on `PUT`. `status` omitted on `PUT` keeps the
   current one. `position` only applies to `POST` (use `/order` to move things).
-- `PUT /order` → `400 DASHBOARD_REORDER_MISMATCH` unless `ids` is exactly every item of that language.
+- A list without `language` → `400`. `PUT /order` → `400 DASHBOARD_REORDER_MISMATCH` unless `ids` is exactly every item of that language.
 - Validation (400): challenge `title` 1..200, `action` 1..1000, `InApp` needs 1..5
   `inputDefinitions` with a label (missing `key`s become `field1`..`field5`; `External` stores none);
   breathing needs `title`, `description` and ≥1 step of 1..600 s; resource needs `titleParts`
