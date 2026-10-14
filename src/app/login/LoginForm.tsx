@@ -98,12 +98,6 @@ export function LoginForm() {
         <Button type="submit" variant="primary" loading={login.isPending} className="mt-6 w-full">
           Entrar
         </Button>
-        <div className="mt-5 flex items-start gap-2 rounded-[12px] bg-bo-soft px-3 py-2.5 shadow-[inset_0_0_0_1px_#EAE7E0]">
-          <Icon.lock size={15} className="mt-0.5 shrink-0 text-ink-60" />
-          <p className="text-[12px] leading-[1.45] font-medium text-ink-60">
-            Solo cuentas con rol de administrador. Cada acción queda registrada en el Historial.
-          </p>
-        </div>
         <Badge tone="lime" className="absolute top-7 right-6">
           Interno
         </Badge>
