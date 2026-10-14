@@ -20,14 +20,13 @@ import { countryName, filtersQuery, langName, useTrackingFilters } from "@/lib/f
 import { dayShort, n, p, plural } from "@/lib/format";
 import {
   AGE_LABEL,
-  answerLabel,
   dayKey,
   GENDER_LABEL,
   MAP_ID,
+  mergeAnswers,
   money,
   pct,
   questionLabel,
-  sortQuestions,
 } from "@/lib/tracking/labels";
 import { funnelRows, shot, STEPS } from "@/lib/tracking/onboarding";
 import { useOnboardingFunnel, useOverview } from "@/lib/tracking/queries";
@@ -77,6 +76,8 @@ export function Overview() {
         : [],
     [d],
   );
+
+  const profile = useMemo(() => (d ? mergeAnswers(d.onboardingAnswers) : []), [d]);
 
   const toScreen = (screen: string) => {
     const next = new URLSearchParams(filtersQuery(params));
@@ -128,10 +129,6 @@ export function Overview() {
               note="suscripción activa o cortesía"
             />
           </div>
-          <p className="mt-3 text-[12.5px] font-medium text-ink-60">
-            No hay un evento de instalación: “registrados” son las cuentas creadas (el registro es al final del
-            onboarding).
-          </p>
 
           <div className="mt-5 grid items-stretch gap-5 lg:grid-cols-3">
             <Panel title="Evolución" info="Registros y primeras compras por día (UTC)." className="lg:col-span-2">
@@ -256,17 +253,17 @@ export function Overview() {
                 </Link>
               }
             >
-              {d.onboardingAnswers.length ? (
+              {profile.length ? (
                 <ul className="divide-y divide-bo-line">
-                  {sortQuestions(d.onboardingAnswers).map((qa) => {
-                    const top = [...qa.options].sort((a, b) => b.count - a.count)[0];
+                  {profile.map((qa) => {
+                    const top = qa.options[0];
                     return (
                       <li key={qa.question} className="flex items-baseline justify-between gap-4 py-2.5">
                         <span className="min-w-0 text-[13px] font-medium text-ink-60">
                           {questionLabel(qa.question)}
                         </span>
                         <span className="shrink-0 text-right text-[13.5px] font-bold text-ink">
-                          {top ? answerLabel(top.answer) : "—"}
+                          {top ? top.label : "—"}
                           {top && <span className="ml-1.5 text-ink-60 tnum">{p(pct(top.count, qa.answered))}</span>}
                         </span>
                       </li>

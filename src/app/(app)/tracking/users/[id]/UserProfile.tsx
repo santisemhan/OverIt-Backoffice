@@ -5,23 +5,26 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
 import { BarList, Columns, SERIES } from "@/components/ui/charts";
+import { Pager } from "@/components/ui/DataTable";
 import { ConfirmDialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Field } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/icons";
 import { Figure } from "@/components/ui/KpiCard";
 import { Menu } from "@/components/ui/Menu";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { PageSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { Meter } from "@/components/ui/Stat";
 import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, describeError } from "@/lib/api";
 import { cx } from "@/lib/cx";
 import { countryName, langName } from "@/lib/filters";
-import { ago, dateTime, dayLong, dayShort, n, plural, secs } from "@/lib/format";
+import { ago, dateTime, dayLong, dayShort, n, plural, secs, time } from "@/lib/format";
+import { useModerationComments, useModerationPosts } from "@/lib/moderation/queries";
+import type { ModerationComment, ModerationPost } from "@/lib/moderation/types";
 import {
   answerLabel,
   dayKey,
@@ -30,19 +33,22 @@ import {
   lookOf,
   money,
   pct,
+  questionKey,
   questionLabel,
   sortQuestions,
   ts,
 } from "@/lib/tracking/labels";
 import { useGrantAccess, useRenameUser, useRevokeAccess } from "@/lib/tracking/mutations";
-import { useUser } from "@/lib/tracking/queries";
+import { useNinetyMessages, useUser } from "@/lib/tracking/queries";
 import type { UserDetail } from "@/lib/tracking/types";
 import { displayName, ErrorPanel, OnbBadge, SubBadge } from "../../_ui";
 
 /*
- * Tracking → Users → one person: header, journey and tabs with what the API returns. Privacy: the ex's name, the
- * future-me message and the Ninety conversation are never returned by the API and never shown here.
+ * Tracking → Users → one person: header, journey and tabs with what the API returns, including the ex's name, the
+ * future-me message, the Ninety conversation and their posts and comments (paged).
  */
+
+const LIST_PAGE_SIZE = 10;
 
 type TabId = "onboarding" | "progress" | "resources" | "ninety" | "subscription" | "community";
 const TABS: TabId[] = ["onboarding", "progress", "resources", "ninety", "subscription", "community"];
@@ -140,7 +146,14 @@ export function UserProfile({ id }: { id: string }) {
             </span>
             <div className="min-w-0 flex-1 pt-[46px]">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <h1 className="text-[28px] leading-[1.05] font-black tracking-[-0.03em] text-ink">{displayName(u)}</h1>
+                <span className="flex items-center gap-1">
+                  <h1 className="text-[28px] leading-[1.05] font-black tracking-[-0.03em] text-ink">
+                    {displayName(u)}
+                  </h1>
+                  <IconButton label="Cambiar nombre visible" onClick={() => setRenaming(true)}>
+                    <Icon.pencil size={17} />
+                  </IconButton>
+                </span>
                 {u.plan?.movedOnAt && (
                   <Badge tone="lime" icon={<Icon.check size={12} strokeWidth={2.6} />}>
                     Superado
@@ -195,7 +208,15 @@ export function UserProfile({ id }: { id: string }) {
         {tab === "resources" && <ResourcesTab u={u} />}
         {tab === "ninety" && <NinetyTab u={u} total={chatTotal} />}
         {tab === "subscription" && <SubscriptionTab u={u} />}
-        {tab === "community" && <CommunityTab u={u} />}
+        {tab === "community" && (
+          <div className="grid gap-5">
+            <CommunityTab u={u} />
+            <div className="grid gap-5 lg:grid-cols-2">
+              <UserContent u={u} kind="posts" />
+              <UserContent u={u} kind="comments" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Keyed so every opening starts from the current (server-formatted) name. */}
@@ -295,7 +316,9 @@ function OnboardingTab({ u }: { u: UserDetail }) {
         <EmptyState compact icon={<Icon.chat size={22} />} title="No respondió el onboarding" />
       </Panel>
     );
-  const answers = sortQuestions(Object.entries(o.answers).map(([question, values]) => ({ question, values })));
+  const answers = sortQuestions(
+    Object.entries(o.answers).map(([question, values]) => ({ question: questionKey(question), values })),
+  );
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <Panel title="Lo que respondió" actions={<OnbBadge status={u.status} size="sm" />}>
@@ -335,24 +358,28 @@ function OnboardingTab({ u }: { u: UserDetail }) {
           )}
         </Panel>
         <Panel title="Privado" tone="sand">
-          <ul className="space-y-2 text-[13.5px] font-medium text-ink-70">
-            <li className="flex items-center gap-2">
-              <Icon.lock size={14} />
-              {o.hasExName ? "Escribió el nombre de su ex (no se muestra)." : "No escribió el nombre de su ex."}
-            </li>
-            <li className="flex items-center gap-2">
-              <Icon.lock size={14} />
-              {o.futureMessageLength
-                ? `Escribió un mensaje para su yo del futuro (${n(o.futureMessageLength)} caracteres, no se muestra).`
-                : "No escribió el mensaje para su yo del futuro."}
-            </li>
-            <li className="flex items-center gap-2">
-              <Icon.check size={14} />
-              {o.commitmentSignedAt
-                ? `Firmó el compromiso el ${dayLong(ts(o.commitmentSignedAt))}.`
-                : "No firmó el compromiso."}
-            </li>
-          </ul>
+          <dl className="divide-y divide-bo-line">
+            <div className="py-3 first:pt-0">
+              <dt className="text-[12.5px] font-bold text-ink-60">El nombre de su ex</dt>
+              <dd className="mt-1 text-[13.5px] font-bold break-words text-ink">
+                {o.exName ?? <span className="font-medium text-ink-60">No lo escribió.</span>}
+              </dd>
+            </div>
+            <div className="py-3">
+              <dt className="text-[12.5px] font-bold text-ink-60">Mensaje para su yo del futuro</dt>
+              <dd className="mt-1 text-[13.5px] font-medium break-words whitespace-pre-line text-ink">
+                {o.futureMessage ? `“${o.futureMessage}”` : <span className="text-ink-60">No lo escribió.</span>}
+              </dd>
+            </div>
+            {o.commitmentSignedAt && (
+              <div className="py-3 last:pb-0">
+                <dt className="text-[12.5px] font-bold text-ink-60">Compromiso de contacto cero</dt>
+                <dd className="mt-1 text-[13.5px] font-medium text-ink">
+                  {`Lo firmó el ${dayLong(ts(o.commitmentSignedAt))} a las ${time(ts(o.commitmentSignedAt))}.`}
+                </dd>
+              </div>
+            )}
+          </dl>
         </Panel>
       </div>
     </div>
@@ -361,6 +388,7 @@ function OnboardingTab({ u }: { u: UserDetail }) {
 
 function ProgressTab({ u }: { u: UserDetail }) {
   const p = u.plan;
+  const [page, setPage] = useState(1);
   const counts = new Map<string, number>();
   for (const e of u.emotions) counts.set(e.emotion, (counts.get(e.emotion) ?? 0) + 1);
   const done = u.challenges.filter((c) => c.completed).length;
@@ -412,22 +440,28 @@ function ProgressTab({ u }: { u: UserDetail }) {
         sub={`${n(done)} de ${plural(u.challenges.length, "reto asignado", "retos asignados")} completados`}
       >
         {u.challenges.length ? (
-          <ul className="mt-4 max-h-[420px] divide-y divide-bo-line overflow-auto border-t border-bo-line">
-            {[...u.challenges].reverse().map((c) => (
-              <li key={`${c.challengeId}-${c.date}`} className="flex items-center gap-3 px-5 py-2.5">
-                <span className="w-[54px] shrink-0 text-[12.5px] font-bold text-ink-60 tnum">Día {c.day}</span>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-ink">{c.title}</span>
-                <span className="shrink-0 text-[12.5px] font-medium text-ink-60">{dayShort(dayKey(c.date))}</span>
-                {c.completed ? (
-                  <Badge size="sm" tone="ok">
-                    Completó
-                  </Badge>
-                ) : (
-                  <Badge size="sm">Pendiente</Badge>
-                )}
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mt-4 divide-y divide-bo-line border-t border-bo-line">
+              {[...u.challenges]
+                .reverse()
+                .slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
+                .map((c) => (
+                  <li key={`${c.challengeId}-${c.date}`} className="flex items-center gap-3 px-5 py-2.5">
+                    <span className="w-[54px] shrink-0 text-[12.5px] font-bold text-ink-60 tnum">Día {c.day}</span>
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-ink">{c.title}</span>
+                    <span className="shrink-0 text-[12.5px] font-medium text-ink-60">{dayShort(dayKey(c.date))}</span>
+                    {c.completed ? (
+                      <Badge size="sm" tone="ok">
+                        Completó
+                      </Badge>
+                    ) : (
+                      <Badge size="sm">Pendiente</Badge>
+                    )}
+                  </li>
+                ))}
+            </ul>
+            <Pager page={page} pageSize={LIST_PAGE_SIZE} totalCount={u.challenges.length} onPage={setPage} />
+          </>
         ) : (
           <div className="mt-4 border-t border-bo-line">
             <EmptyState compact title="Sin retos asignados" />
@@ -439,22 +473,27 @@ function ProgressTab({ u }: { u: UserDetail }) {
 }
 
 function ResourcesTab({ u }: { u: UserDetail }) {
+  const [page, setPage] = useState(1);
   return (
     <Panel pad={false} title="Leyó" sub={plural(u.resourceReads.length, "artículo o tip", "artículos y tips")}>
       {u.resourceReads.length ? (
-        <ul className="mt-4 divide-y divide-bo-line border-t border-bo-line">
-          {[...u.resourceReads]
-            .sort((a, b) => ts(b.readAt) - ts(a.readAt))
-            .map((r) => (
-              <li key={`${r.resourceId}-${r.readAt}`} className="flex items-center gap-3 px-5 py-2.5">
-                <Badge size="sm" tone={r.type === "Article" ? "info" : "lime"}>
-                  {r.type === "Article" ? "Artículo" : "Tip"}
-                </Badge>
-                <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-ink">{r.title}</span>
-                <span className="shrink-0 text-[12.5px] font-medium text-ink-60">{dateTime(ts(r.readAt))}</span>
-              </li>
-            ))}
-        </ul>
+        <>
+          <ul className="mt-4 divide-y divide-bo-line border-t border-bo-line">
+            {[...u.resourceReads]
+              .sort((a, b) => ts(b.readAt) - ts(a.readAt))
+              .slice((page - 1) * LIST_PAGE_SIZE, page * LIST_PAGE_SIZE)
+              .map((r) => (
+                <li key={`${r.resourceId}-${r.readAt}`} className="flex items-center gap-3 px-5 py-2.5">
+                  <Badge size="sm" tone={r.type === "Article" ? "info" : "lime"}>
+                    {r.type === "Article" ? "Artículo" : "Tip"}
+                  </Badge>
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-ink">{r.title}</span>
+                  <span className="shrink-0 text-[12.5px] font-medium text-ink-60">{dateTime(ts(r.readAt))}</span>
+                </li>
+              ))}
+          </ul>
+          <Pager page={page} pageSize={LIST_PAGE_SIZE} totalCount={u.resourceReads.length} onPage={setPage} />
+        </>
       ) : (
         <div className="mt-4 border-t border-bo-line">
           <EmptyState compact icon={<Icon.book size={22} />} title="No leyó nada todavía" />
@@ -475,9 +514,6 @@ function NinetyTab({ u, total }: { u: UserDetail; total: number }) {
           <Kpi label="Conversaciones" value={n(c.conversations)} />
           <Kpi label="Llamadas" value={n(c.voiceCalls)} sub={c.voiceSeconds ? secs(c.voiceSeconds) : undefined} />
         </dl>
-        <p className="mt-4 flex items-center gap-2 text-[12.5px] font-medium text-[#4B48C9]">
-          <Icon.lock size={14} /> La conversación es privada: solo mostramos cantidades.
-        </p>
       </Panel>
       <Panel title="Mensajes por día">
         {total && c.perDay.length ? (
@@ -491,7 +527,69 @@ function NinetyTab({ u, total }: { u: UserDetail; total: number }) {
           <EmptyState compact icon={<Icon.chat size={22} />} title="No le escribió a Ninety" />
         )}
       </Panel>
+      <Conversation u={u} />
     </div>
+  );
+}
+
+function Conversation({ u }: { u: UserDetail }) {
+  const [page, setPage] = useState(1);
+  const q = useNinetyMessages(u.id, page, 20);
+  const messages = q.data ? [...q.data.items].reverse() : [];
+  return (
+    <Panel
+      className="lg:col-span-2"
+      pad={false}
+      title="Conversación"
+      sub={q.data ? `${plural(q.data.totalCount, "mensaje", "mensajes")} · los más recientes primero` : undefined}
+    >
+      {q.isError && !q.data ? (
+        <div className="mt-4 border-t border-bo-line">
+          <EmptyState
+            compact
+            icon={<Icon.alert size={22} />}
+            title="No pudimos cargar la conversación"
+            action={<Button onClick={() => void q.refetch()}>Reintentar</Button>}
+          />
+        </div>
+      ) : !q.data ? (
+        <div className="space-y-2 p-5">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[56px] rounded-[14px]" />
+          ))}
+        </div>
+      ) : messages.length ? (
+        <>
+          <ol className={cx("mt-4 space-y-2.5 border-t border-bo-line px-5 py-4", q.isFetching && "opacity-60")}>
+            {messages.map((m) => (
+              <li key={m.id} className={cx("flex", m.role === "User" ? "justify-end" : "justify-start")}>
+                <div
+                  className={cx(
+                    "max-w-[85%] rounded-[16px] px-3.5 py-2.5",
+                    m.role === "User" ? "bg-purple text-white" : "bg-bo-soft text-ink",
+                  )}
+                >
+                  <p className="text-[13.5px] font-medium break-words whitespace-pre-line">{m.content}</p>
+                  <p
+                    className={cx(
+                      "mt-1 text-[11.5px] font-medium",
+                      m.role === "User" ? "text-white/75" : "text-ink-60",
+                    )}
+                  >
+                    {`${m.role === "User" ? displayName(u) : "Ninety"} · ${dateTime(ts(m.createdAt))}`}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <Pager page={page} pageSize={q.data.pageSize} totalCount={q.data.totalCount} onPage={setPage} />
+        </>
+      ) : (
+        <div className="mt-4 border-t border-bo-line">
+          <EmptyState compact icon={<Icon.chat size={22} />} title="No le escribió a Ninety" />
+        </div>
+      )}
+    </Panel>
   );
 }
 
@@ -721,13 +819,86 @@ function CommunityTab({ u }: { u: UserDetail }) {
           </div>
         ))}
       </dl>
-      {c.posts + c.comments > 0 && (
-        <Link
-          href={`/moderation/community?user=${u.id}`}
-          className="mt-4 inline-flex items-center gap-1 text-[13px] font-bold text-purple hover:underline"
-        >
-          Ver lo que publicó en Moderación <Icon.arrowRight size={14} />
-        </Link>
+    </Panel>
+  );
+}
+
+function ContentStatus({ x }: { x: ModerationPost | ModerationComment }) {
+  if (x.removedAt)
+    return (
+      <Badge size="sm" tone="bad">
+        Eliminado
+      </Badge>
+    );
+  if (x.openReports > 0 || (x.flag && !x.reviewedAt))
+    return (
+      <Badge size="sm" tone="warn">
+        Para revisar
+      </Badge>
+    );
+  return (
+    <Badge size="sm" tone="ok">
+      Publicado
+    </Badge>
+  );
+}
+
+function UserContent({ u, kind }: { u: UserDetail; kind: "posts" | "comments" }) {
+  const [page, setPage] = useState(1);
+  const params = { status: "any" as const, search: "", userId: u.id, page, pageSize: LIST_PAGE_SIZE };
+  const posts = useModerationPosts(params);
+  const comments = useModerationComments(params);
+  const q = kind === "posts" ? posts : comments;
+  const total = kind === "posts" ? u.community.posts : u.community.comments;
+  return (
+    <Panel
+      pad={false}
+      title={kind === "posts" ? "Publicaciones" : "Comentarios"}
+      sub={plural(
+        total,
+        kind === "posts" ? "publicación" : "comentario",
+        kind === "posts" ? "publicaciones" : "comentarios",
+      )}
+      actions={
+        total > 0 && (
+          <Link
+            href={`/moderation/community?user=${u.id}`}
+            className="inline-flex items-center gap-1 text-[13px] font-bold text-purple hover:underline"
+          >
+            Moderar <Icon.arrowRight size={14} />
+          </Link>
+        )
+      }
+    >
+      {!q.data ? (
+        <div className="space-y-2 p-5">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-[52px] rounded-[12px]" />
+          ))}
+        </div>
+      ) : q.data.items.length ? (
+        <>
+          <ul className={cx("mt-4 divide-y divide-bo-line border-t border-bo-line", q.isFetching && "opacity-60")}>
+            {q.data.items.map((x) => (
+              <li key={x.id} className="px-5 py-3">
+                <p className="text-[13.5px] font-medium break-words whitespace-pre-line text-ink">{x.text}</p>
+                {"postText" in x && x.postText && (
+                  <p className="mt-1 truncate text-[12px] font-medium text-ink-60">{`En: “${x.postText}”`}</p>
+                )}
+                <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] font-medium text-ink-60">
+                  <ContentStatus x={x} />
+                  {dateTime(ts(x.createdAt))}
+                  {x.reports > 0 && ` · ${plural(x.reports, "reporte", "reportes")}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <Pager page={page} pageSize={q.data.pageSize} totalCount={q.data.totalCount} onPage={setPage} />
+        </>
+      ) : (
+        <div className="mt-4 border-t border-bo-line">
+          <EmptyState compact title={kind === "posts" ? "No publicó nada" : "No comentó nada"} />
+        </div>
       )}
     </Panel>
   );

@@ -13,6 +13,7 @@ import type {
   ModerationPost,
   ModerationStatus,
   NinetyMetrics,
+  NinetyTopUser,
   Paged,
 } from "./types";
 
@@ -140,3 +141,13 @@ export const ninetyQuery = (range: RangeId) =>
     queryFn: ({ signal }) => api<NinetyMetrics>(`${BASE}/metrics/ninety`, { query: { range }, signal }),
   });
 export const useNinety = (range: RangeId) => useQuery(ninetyQuery(range));
+
+export const ninetyUsersQuery = (range: RangeId, page: number, pageSize: number) =>
+  queryOptions({
+    queryKey: ["moderation", "ninety", "users", range, page, pageSize],
+    queryFn: ({ signal }) =>
+      api<Paged<NinetyTopUser>>(`${BASE}/metrics/ninety/users`, { query: { range, page, pageSize }, signal }),
+    placeholderData: keepPreviousData,
+  });
+export const useNinetyUsers = (range: RangeId, page: number, pageSize: number) =>
+  useQuery(ninetyUsersQuery(range, page, pageSize));

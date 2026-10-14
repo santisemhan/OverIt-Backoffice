@@ -17,7 +17,7 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   /** Query string values; undefined, null and "" are skipped. */
-  query?: Record<string, string | number | boolean | null | undefined>;
+  query?: Record<string, string | number | boolean | string[] | null | undefined>;
   /** Login runs before a session exists. */
   anonymous?: boolean;
   signal?: AbortSignal;
@@ -73,7 +73,8 @@ function toQueryString(query: RequestOptions["query"]): string {
   if (!query) return "";
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
+    if (Array.isArray(value)) for (const v of value) params.append(key, v);
+    else if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
   }
   const s = params.toString();
   return s ? `?${s}` : "";

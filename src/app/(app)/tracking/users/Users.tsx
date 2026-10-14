@@ -40,6 +40,7 @@ const ONB_OPTIONS: SelectOption<OnbOpt>[] = [
 ];
 const SUB_OPTIONS: SelectOption<SubOpt>[] = [
   { id: "all", label: "Suscripción: todas" },
+  { id: "active", label: "Activa" },
   { id: "renews", label: "Renueva" },
   { id: "renewsThisWeek", label: "Renueva esta semana" },
   { id: "canceledWithAccess", label: "Canceló, con acceso" },
@@ -65,9 +66,9 @@ export function Users() {
 
   const onboarding = parse<OnbOpt>(params.get("onboarding"), ONB_OPTIONS, "all");
   const subscription = parse<SubOpt>(params.get("subscription"), SUB_OPTIONS, "all");
-  const question = params.get("question");
-  const answerValue = params.get("answer");
-  const answer = question && answerValue ? { question, answer: answerValue } : null;
+  const questions = params.getAll("question");
+  const answers = params.getAll("answer");
+  const answer = questions.length && answers.length ? { questions, answers } : null;
   const country = params.get("country");
   const language = parse<Lang | "all">(params.get("language"), LANG_OPTIONS, "all");
   const leftAt = params.get("leftAt");
@@ -267,7 +268,7 @@ export function Users() {
           )}
           {answer && (
             <span className="inline-flex h-[30px] items-center gap-1 rounded-full bg-purple-10 pr-1 pl-3 text-[13px] font-bold text-info">
-              {`Respondió ${answer.question === "breakupMotives" ? "motivo" : questionLabel(answer.question)}: ${answerLabel(answer.answer)}`}
+              {`Respondió ${answer.questions[0] === "breakupMotives" ? "motivo" : questionLabel(answer.questions[0])}: ${answerLabel(answer.answers[0])}`}
               <button
                 type="button"
                 aria-label="Quitar filtro de respuesta"

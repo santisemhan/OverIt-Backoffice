@@ -5,37 +5,49 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { FilterBar } from "@/components/shell/FilterBar";
-import { HScroll } from "@/components/ui/HScroll";
 import { Panel } from "@/components/ui/Card";
 import { MirrorColumns, SERIES, Stack100, WithTable } from "@/components/ui/charts";
-import { Pager } from "@/components/ui/DataTable";
+import { DataTable, Pager, type Column } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SearchField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/icons";
 import { Figure, StatTile, type FigureId } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PageSkeleton, Skeleton } from "@/components/ui/Skeleton";
+import { Select } from "@/components/ui/Select";
 import { Num } from "@/components/ui/Stat";
-import { cx } from "@/lib/cx";
 import { useTrackingFilters } from "@/lib/filters";
 import { ago, dayLong, dayShort, n, p, plural } from "@/lib/format";
-import { DEFAULT_PAGE_SIZE } from "@/lib/queries";
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "@/lib/queries";
 import type { ToneId } from "@/lib/tones";
 import { dayKey, money, ts } from "@/lib/tracking/labels";
-import { useSubscriptionsMetrics, useUsers } from "@/lib/tracking/queries";
+import { useCancelReasons, useSubscriptionsMetrics, useUsers } from "@/lib/tracking/queries";
 import type { SubscriptionFilter, UserListItem } from "@/lib/tracking/types";
 import { ErrorPanel, NotMeasured, SubBadge, UserCell } from "../_ui";
 
 /*
  * Tracking → Subscriptions. The state of every subscription TODAY (does not follow the period): who renews (and who
  * renews this week), who canceled (and still has access) and who no longer has access. New/canceled per day and the
- * cancellation messages follow the period. Lists come from GET /users?subscription=<bucket>&sort=expiresAt.
+ * cancellation messages follow the period. "Suscriptores" comes from GET /users?subscription=<filter>&sort=expiresAt.
  */
 
 type View = Exclude<SubscriptionFilter, "none">;
-const VIEWS: View[] = ["renews", "renewsThisWeek", "canceledWithAccess", "canceled", "expired", "grant"];
+const VIEWS: View[] = [
+  "any",
+  "active",
+  "renews",
+  "renewsThisWeek",
+  "canceledWithAccess",
+  "canceled",
+  "expired",
+  "grant",
+];
+
+const REASONS_PAGE_SIZE = 10;
 
 const VIEW_COPY: Record<View, { title: string; sub: string; desc: boolean }> = {
+  any: { title: "Todas", sub: "Todos los que compraron alguna vez o tienen acceso de cortesía.", desc: false },
+  active: { title: "Activas", sub: "Con acceso pago hoy: renuevan o cancelaron pero siguen con acceso.", desc: false },
   renews: { title: "Renuevan", sub: "Ordenadas por la próxima renovación.", desc: false },
   renewsThisWeek: { title: "Renuevan esta semana", sub: "Se les cobra en los próximos 7 días.", desc: false },
   canceledWithAccess: {
@@ -61,10 +73,14 @@ export function Subscriptions() {
   const d = m.data;
 
   const asked = params.get("view") as View | null;
-  const view: View = asked && VIEWS.includes(asked) ? asked : "renews";
+  const view: View = asked && VIEWS.includes(asked) ? asked : "any";
   const [q, setQ] = useState("");
   const search = useDebounced(q);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [reasonsPage, setReasonsPage] = useState({ range: filters.range, page: 1 });
+  const reasonsAt = reasonsPage.range === filters.range ? reasonsPage.page : 1;
+  const reasons = useCancelReasons(filters.range, reasonsAt, REASONS_PAGE_SIZE);
 
   const show = (v: View) => {
     const next = new URLSearchParams(params);
@@ -75,8 +91,9 @@ export function Subscriptions() {
 
   const list = useUsers(
     { search, onboarding: null, subscription: view },
-    { page, pageSize: DEFAULT_PAGE_SIZE, sort: { key: "expiresAt", desc: VIEW_COPY[view].desc } },
+    { page, pageSize, sort: { key: "expiresAt", desc: VIEW_COPY[view].desc } },
   );
+  const [now] = useState(() => Date.now());
 
   if (m.isError && !d)
     return (
@@ -94,7 +111,8 @@ export function Subscriptions() {
     );
 
   const c = d.counts;
-  const count: Record<View, number> = {
+  const count: Partial<Record<View, number>> = {
+    active: c.renews + c.canceledWithAccess,
     renews: c.renews,
     renewsThisWeek: c.renewsThisWeek,
     canceledWithAccess: c.canceledWithAccess,
@@ -102,6 +120,54 @@ export function Subscriptions() {
     expired: c.expired,
     grant: c.activeGrants,
   };
+  const columns: Column<UserListItem>[] = [
+    { key: "user", header: "Suscriptor", cell: (u) => <UserCell u={u} /> },
+    {
+      key: "product",
+      header: "Producto",
+      cell: (u) => (
+        <span>
+          <span className="block font-bold text-ink">{u.subscription.productId ?? "—"}</span>
+          {u.subscription.store ?? ""}
+        </span>
+      ),
+    },
+    {
+      key: "expiresAt",
+      header: "Fecha",
+      cell: (u) => {
+        const s = u.subscription;
+        const exp = s.expiresAt ? ts(s.expiresAt) : null;
+        if (!exp) return u.hasActiveGrant ? "Acceso de cortesía" : "Sin fecha";
+        return (
+          <span>
+            <span className="block font-bold text-ink">
+              {s.bucket === "renews"
+                ? `Renueva el ${dayLong(exp)}`
+                : s.bucket === "canceledWithAccess"
+                  ? `Acceso hasta el ${dayLong(exp)}`
+                  : `Venció el ${dayLong(exp)}`}
+            </span>
+            {exp <= now && ago(exp, now)}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Estado",
+      align: "right",
+      cell: (u) => (
+        <SubBadge
+          size="sm"
+          bucket={u.subscription.bucket}
+          expiresAt={u.subscription.expiresAt}
+          grant={u.hasActiveGrant}
+        />
+      ),
+    },
+  ];
+
   const tiles: { id: View; label: string; note: string; tone: ToneId; figure: FigureId; icon: ReactNode }[] = [
     {
       id: "renews",
@@ -155,7 +221,7 @@ export function Subscriptions() {
             figure={t.figure}
             icon={t.icon}
             label={t.label}
-            value={<Num value={count[t.id]} />}
+            value={<Num value={count[t.id] ?? 0} />}
             note={t.note}
             selected={view === t.id}
             onClick={() => {
@@ -264,9 +330,11 @@ export function Subscriptions() {
           sub={plural(d.cancelReasons.total, "mensaje en el período", "mensajes en el período")}
           info="Lo que escribieron en el formulario de cancelación de la app. No está ligado a una suscripción puntual."
         >
-          {d.cancelReasons.recent.length ? (
+          {!reasons.data ? (
+            <Skeleton className="h-[120px] rounded-[12px]" />
+          ) : reasons.data.items.length ? (
             <ul className="space-y-2">
-              {d.cancelReasons.recent.map((r) => (
+              {reasons.data.items.map((r) => (
                 <li
                   key={r.feedbackId}
                   className="rounded-[12px] bg-bo-soft px-3.5 py-2.5 shadow-[inset_0_0_0_1px_#EFEDE7]"
@@ -288,6 +356,16 @@ export function Subscriptions() {
             </ul>
           ) : (
             <EmptyState compact title="Nadie dejó un motivo en este período" icon={<Icon.check size={22} />} />
+          )}
+          {reasons.data && (
+            <div className="-mx-5 mt-4 -mb-5">
+              <Pager
+                page={reasonsAt}
+                pageSize={reasons.data.pageSize}
+                totalCount={reasons.data.totalCount}
+                onPage={(next) => setReasonsPage({ range: filters.range, page: next })}
+              />
+            </div>
           )}
         </Panel>
         <Panel
@@ -319,28 +397,29 @@ export function Subscriptions() {
         id="subscriptions-list"
         className="mt-5 scroll-mt-28 lg:scroll-mt-6"
         pad={false}
-        title={VIEW_COPY[view].title}
+        title="Suscriptores"
         sub={VIEW_COPY[view].sub}
       >
         <div className="flex flex-wrap items-center gap-2 px-5 pt-4 pb-4">
-          <HScroll label="Listas" arrows={false} className="max-w-full min-w-0" innerClassName="no-scrollbar">
-            <div className="flex w-max gap-1.5">
-              {VIEWS.map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => show(v)}
-                  aria-pressed={view === v}
-                  className={cx(
-                    "h-[34px] shrink-0 press rounded-full px-3.5 text-[13.5px] font-bold",
-                    view === v ? "bg-ink text-white" : "bg-[#F0EEE9] text-ink-70 hover:text-ink",
-                  )}
-                >
-                  {VIEW_COPY[v].title} <span className="tnum opacity-70">{n(count[v])}</span>
-                </button>
-              ))}
-            </div>
-          </HScroll>
+          <Select
+            label="Suscripción"
+            value={view}
+            options={VIEWS.map((v) => ({
+              id: v,
+              label: VIEW_COPY[v].title,
+              hint: count[v] === undefined ? undefined : n(count[v]),
+            }))}
+            onChange={show}
+          />
+          <Select
+            label="Por página"
+            value={String(pageSize)}
+            options={PAGE_SIZE_OPTIONS.map((s) => ({ id: String(s), label: `${s} por página` }))}
+            onChange={(v) => {
+              setPageSize(Number(v));
+              setPage(1);
+            }}
+          />
           <SearchField
             label="Buscar en la lista"
             value={q}
@@ -352,96 +431,37 @@ export function Subscriptions() {
             className="ml-auto w-full sm:w-[260px]"
           />
         </div>
-        <SubList
-          view={view}
-          rows={list.data?.items}
-          loading={list.isPending}
-          error={list.isError ? list.error : null}
-          search={q}
-        />
-        {list.data && (
-          <Pager page={page} pageSize={list.data.pageSize} totalCount={list.data.totalCount} onPage={setPage} />
+        {list.isError && !list.data ? (
+          <div className="border-t border-bo-line">
+            <EmptyState compact icon={<Icon.alert size={22} />} title="No pudimos cargar la lista" />
+          </div>
+        ) : (
+          <DataTable
+            label="Suscriptores"
+            columns={columns}
+            rows={list.data?.items ?? []}
+            rowKey={(u) => u.id}
+            onRowClick={(u) => router.push(`/tracking/users/${u.id}?tab=subscription`)}
+            loading={list.isPending}
+            stickyFirstColumn
+            empty={
+              <EmptyState
+                compact
+                title={q ? "Nadie coincide con la búsqueda" : "No hay nadie en esta lista"}
+                text={q ? "Probá con otro nombre, email o ID." : undefined}
+              />
+            }
+            pagination={
+              list.data && {
+                page,
+                pageSize: list.data.pageSize,
+                totalCount: list.data.totalCount,
+                onPage: setPage,
+              }
+            }
+          />
         )}
       </Panel>
     </>
-  );
-}
-
-function SubList({
-  view,
-  rows,
-  loading,
-  error,
-  search,
-}: {
-  view: View;
-  rows: UserListItem[] | undefined;
-  loading: boolean;
-  error: unknown;
-  search: string;
-}) {
-  const [now] = useState(() => Date.now());
-  if (error)
-    return (
-      <div className="border-t border-bo-line">
-        <EmptyState compact icon={<Icon.alert size={22} />} title="No pudimos cargar la lista" />
-      </div>
-    );
-  if (loading || !rows)
-    return (
-      <div className="space-y-2 border-t border-bo-line p-5">
-        {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-[44px] rounded-[12px]" />
-        ))}
-      </div>
-    );
-  if (!rows.length)
-    return (
-      <div className="border-t border-bo-line">
-        <EmptyState
-          compact
-          title={search ? "Nadie coincide con la búsqueda" : "No hay nadie en esta lista"}
-          text={search ? "Probá con otro nombre, email o ID." : undefined}
-        />
-      </div>
-    );
-  return (
-    <ul className="divide-y divide-bo-line border-t border-bo-line">
-      {rows.map((u) => {
-        const s = u.subscription;
-        const exp = s.expiresAt ? ts(s.expiresAt) : null;
-        const key =
-          view === "grant"
-            ? "Acceso de cortesía"
-            : !exp
-              ? "Sin fecha"
-              : view === "renews" || view === "renewsThisWeek"
-                ? `Renueva el ${dayLong(exp)}`
-                : view === "canceledWithAccess"
-                  ? `Acceso hasta el ${dayLong(exp)}`
-                  : `Venció el ${dayLong(exp)}`;
-        return (
-          <li key={u.id}>
-            <Link
-              href={`/tracking/users/${u.id}?tab=subscription`}
-              className="grid gap-x-4 gap-y-2 px-5 py-3.5 hover:bg-bo-soft md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] md:items-center"
-            >
-              <UserCell u={u} />
-              <span className="text-[13px] font-medium text-ink-70">
-                <span className="block font-bold text-ink">{s.productId ?? "—"}</span>
-                {s.store ?? ""}
-              </span>
-              <span className="min-w-0 text-[13px] font-medium text-ink-70">
-                <span className="block font-bold text-ink">{key}</span>
-                {exp && <span className="block">{exp > now ? null : ago(exp, now)}</span>}
-              </span>
-              <span className="md:text-right">
-                <SubBadge size="sm" bucket={s.bucket} expiresAt={s.expiresAt} grant={u.hasActiveGrant} />
-              </span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

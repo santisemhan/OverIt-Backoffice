@@ -3,6 +3,9 @@ import { api } from "@/lib/api";
 import type { RangeId, TrackingFilters } from "@/lib/filters";
 import { listQuery, type ListParams } from "@/lib/queries";
 import type {
+  BreakupMotivesEntry,
+  CancelReason,
+  ChatMessage,
   CountryUsers,
   OnboardingFilter,
   OnboardingFunnel,
@@ -24,8 +27,8 @@ export interface UserListFilters {
   search: string;
   onboarding: OnboardingFilter | null;
   subscription: SubscriptionFilter | null;
-  /** Onboarding answer filter: users whose answer to `question` includes `answer`. */
-  answer?: { question: string; answer: string } | null;
+  /** Onboarding answer filter: users whose answer to any of `questions` includes any of `answers`. */
+  answer?: { questions: string[]; answers: string[] } | null;
   country?: string | null;
   language?: string | null;
   /** People with an account whose onboarding stopped on this screen. */
@@ -36,8 +39,8 @@ export const usersQueryParams = (f: UserListFilters, list: ListParams) => ({
   search: f.search.trim() || undefined,
   onboarding: f.onboarding ?? undefined,
   subscription: f.subscription ?? undefined,
-  question: f.answer?.question,
-  answer: f.answer?.answer,
+  question: f.answer?.questions,
+  answer: f.answer?.answers,
   country: f.country ?? undefined,
   language: f.language ?? undefined,
   leftAt: f.leftAt ?? undefined,
@@ -60,6 +63,18 @@ export const userQuery = (id: string) =>
   });
 /* No placeholder: while another person loads, never show the previous one. */
 export const useUser = (id: string) => useQuery({ ...userQuery(id), placeholderData: undefined });
+
+export const ninetyMessagesQuery = (id: string, page: number, pageSize: number) =>
+  queryOptions({
+    queryKey: ["tracking", "user", id, "ninety", page, pageSize],
+    queryFn: ({ signal }) =>
+      api<Paged<ChatMessage>>(`/api/backoffice/users/${encodeURIComponent(id)}/ninety`, {
+        query: { page, pageSize },
+        signal,
+      }),
+  });
+export const useNinetyMessages = (id: string, page: number, pageSize: number) =>
+  useQuery({ ...ninetyMessagesQuery(id, page, pageSize), placeholderData: keepPreviousData });
 
 export const countriesQuery = () =>
   queryOptions({
@@ -91,6 +106,18 @@ export const onboardingFunnelQuery = (f: TrackingFilters) =>
 export const useOnboardingFunnel = (f: TrackingFilters) =>
   useQuery({ ...onboardingFunnelQuery(f), placeholderData: keepPreviousData });
 
+export const breakupMotivesQuery = (f: TrackingFilters, page: number, pageSize: number) =>
+  queryOptions({
+    queryKey: ["tracking", "breakupMotives", f, page, pageSize],
+    queryFn: ({ signal }) =>
+      api<Paged<BreakupMotivesEntry>>("/api/backoffice/metrics/onboarding/breakup-motives", {
+        query: { ...metricsParams(f), page, pageSize },
+        signal,
+      }),
+  });
+export const useBreakupMotives = (f: TrackingFilters, page: number, pageSize: number) =>
+  useQuery({ ...breakupMotivesQuery(f, page, pageSize), placeholderData: keepPreviousData });
+
 export const subscriptionsMetricsQuery = (range: RangeId) =>
   queryOptions({
     queryKey: ["tracking", "subscriptions", range],
@@ -98,6 +125,18 @@ export const subscriptionsMetricsQuery = (range: RangeId) =>
       api<SubscriptionsMetrics>("/api/backoffice/metrics/subscriptions", { query: { range }, signal }),
   });
 export const useSubscriptionsMetrics = (range: RangeId) => useQuery(subscriptionsMetricsQuery(range));
+
+export const cancelReasonsQuery = (range: RangeId, page: number, pageSize: number) =>
+  queryOptions({
+    queryKey: ["tracking", "cancelReasons", range, page, pageSize],
+    queryFn: ({ signal }) =>
+      api<Paged<CancelReason>>("/api/backoffice/metrics/subscriptions/cancel-reasons", {
+        query: { range, page, pageSize },
+        signal,
+      }),
+  });
+export const useCancelReasons = (range: RangeId, page: number, pageSize: number) =>
+  useQuery({ ...cancelReasonsQuery(range, page, pageSize), placeholderData: keepPreviousData });
 
 export const usageQuery = (range: RangeId) =>
   queryOptions({

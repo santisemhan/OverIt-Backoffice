@@ -1,4 +1,4 @@
-import type { AgeKey, Emotion, FeatureKey, Gender, SubscriptionBucket, UserStatus } from "./types";
+import type { AgeKey, Emotion, FeatureKey, Gender, Overview, SubscriptionBucket, UserStatus } from "./types";
 
 /* Spanish copy for Tracking enums and the onboarding question keys the app sends (OverIt-Mobile buildAnswers). */
 
@@ -12,7 +12,27 @@ export const QUESTION_LABEL: Record<string, string> = {
   YOUR_GOALS: "Sus objetivos",
 };
 export const QUESTION_ORDER = Object.keys(QUESTION_LABEL);
-export const questionLabel = (k: string) => QUESTION_LABEL[k] ?? k;
+
+/* Older app versions stored the question title (es or en, OverIt-Mobile src/common/i18n) as the key. */
+export const QUESTION_ALIAS: Record<string, string> = {
+  "How long has it been since the breakup?": "HOW_TIME_SINCE",
+  "¿Cuánto tiempo pasó desde la ruptura?": "HOW_TIME_SINCE",
+  "How long did the relationship last?": "HOW_TIME_RELATIONSHIP_LAST",
+  "¿Cuánto tiempo duró la relación?": "HOW_TIME_RELATIONSHIP_LAST",
+  "Who decided to end the relationship?": "WHO_MADE_THE_DECISION",
+  "¿Quién tomó la decisión de terminar la relación?": "WHO_MADE_THE_DECISION",
+  "What most influenced the breakup?": "WHAT_MOST_INFLUENCED",
+  "¿Qué fue lo que más influyó en la separación?": "WHAT_MOST_INFLUENCED",
+  "What emotions have been with you most?": "YOUR_EMOTIONS_NOW",
+  "¿Qué emociones te acompañan más?": "YOUR_EMOTIONS_NOW",
+  "What actions do you feel you repeat daily?": "YOUR_ACTIONS_NOW",
+  "¿Qué acciones sientes que repites a diario?": "YOUR_ACTIONS_NOW",
+  "¿Qué acciones sentís que repetís a diario?": "YOUR_ACTIONS_NOW",
+  "Choose your goals": "YOUR_GOALS",
+  "Elige tus objetivos": "YOUR_GOALS",
+};
+export const questionKey = (k: string) => QUESTION_ALIAS[k] ?? k;
+export const questionLabel = (k: string) => QUESTION_LABEL[questionKey(k)] ?? k;
 export const sortQuestions = <T extends { question: string }>(qs: T[]) =>
   [...qs].sort((a, b) => {
     const ia = QUESTION_ORDER.indexOf(a.question);
@@ -57,6 +77,47 @@ export const ANSWER_LABEL: Record<string, string> = {
   "More energy and motivation": "Más energía y motivación",
 };
 export const answerLabel = (k: string) => ANSWER_LABEL[k] ?? k;
+
+export interface MergedAnswer {
+  label: string;
+  count: number;
+  /** Every stored value (es and en) behind this label. */
+  values: string[];
+}
+export interface MergedQuestion {
+  question: string;
+  /** Every stored key (current key and older titles) behind this question. */
+  keys: string[];
+  answered: number;
+  options: MergedAnswer[];
+}
+
+/** The answer distribution with en answers and older question titles folded into their Spanish row. */
+export function mergeAnswers(qs: Overview["onboardingAnswers"]): MergedQuestion[] {
+  const byQuestion = new Map<string, { keys: string[]; answered: number; options: Map<string, MergedAnswer> }>();
+  for (const q of qs) {
+    const key = questionKey(q.question);
+    const group = byQuestion.get(key) ?? { keys: [], answered: 0, options: new Map<string, MergedAnswer>() };
+    group.keys.push(q.question);
+    group.answered += q.answered;
+    for (const o of q.options) {
+      const label = answerLabel(o.answer);
+      const opt = group.options.get(label) ?? { label, count: 0, values: [] };
+      opt.count += o.count;
+      if (!opt.values.includes(o.answer)) opt.values.push(o.answer);
+      group.options.set(label, opt);
+    }
+    byQuestion.set(key, group);
+  }
+  return sortQuestions(
+    [...byQuestion.entries()].map(([question, g]) => ({
+      question,
+      keys: g.keys,
+      answered: g.answered,
+      options: [...g.options.values()].sort((a, b) => b.count - a.count),
+    })),
+  );
+}
 
 export const GENDER_LABEL: Record<Gender | "UNKNOWN", string> = {
   FEMALE: "Mujer",

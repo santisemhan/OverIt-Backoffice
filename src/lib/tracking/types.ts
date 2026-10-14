@@ -20,7 +20,7 @@ export interface Paged<T> {
 /* ─────────── Users ─────────── */
 
 export type OnboardingFilter = "completed" | "partial" | "pending" | "notCompleted";
-export type SubscriptionFilter = SubscriptionBucket | "renewsThisWeek" | "grant";
+export type SubscriptionFilter = SubscriptionBucket | "any" | "active" | "renewsThisWeek" | "grant";
 export type UserSort = "createdAt" | "name" | "email" | "lastLogin" | "age" | "expiresAt";
 
 export interface UserListItem {
@@ -76,8 +76,8 @@ export interface UserDetail {
   providers: Provider[];
   onboarding: null | {
     answers: Record<string, string[]>;
-    hasExName: boolean;
-    futureMessageLength: number | null;
+    exName: string | null;
+    futureMessage: string | null;
     breakupMotives: string[];
     commitmentSignedAt: string | null;
   };
@@ -192,7 +192,23 @@ export interface Overview {
     country: { key: string; users: number; subscribed: number }[];
   };
   onboardingAnswers: { question: string; answered: number; options: { answer: string; count: number }[] }[];
-  breakupMotives: { answer: string; count: number }[];
+}
+
+export interface BreakupMotivesEntry {
+  userId: string;
+  name: string | null;
+  email: string;
+  status: UserStatus;
+  createdAt: string | null;
+  motives: string[];
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  role: "User" | "Assistant";
+  content: string;
+  createdAt: string;
 }
 
 export interface CountryUsers {
@@ -226,11 +242,15 @@ export interface SubscriptionsMetrics {
   collected: Collected;
   byProduct: { productId: string; active: number; renewing: number }[];
   perDay: { date: string; new: number; canceled: number }[];
-  cancelReasons: {
-    total: number;
-    recent: { feedbackId: string; userId: string | null; at: string; message: string }[];
-  };
+  cancelReasons: { total: number };
   firstRenewal: { eligible: number; renewed: number; rate: number | null };
+}
+
+export interface CancelReason {
+  feedbackId: string;
+  userId: string | null;
+  at: string;
+  message: string;
 }
 
 export type FeatureKey =

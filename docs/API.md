@@ -26,6 +26,10 @@ type Paged<T> = { items: T[]; page: number; pageSize: number; totalCount: number
 - **Audit.** Every mutation (`POST/PUT/PATCH/DELETE`) writes an audit entry (see Audit log).
 - **Filters.** Metrics take `range=7|30|90|all` (default `all`). `overview` and `onboarding` also take
   `country` (ISO 3166-1 alpha-2) and `language` (`es`|`en`); the other metrics ignore them.
+- **Community personas.** The accounts the community activity job posts as (email ending in
+  `@community.overit.invalid`) are left out of every user list, search, count and metric (users, countries,
+  overview, onboarding, subscriptions, usage, Ninety). Their posts and comments still show in Moderation and
+  the Inbox, and `GET /users/{id}` still answers for them. One predicate in the backend (`Personas`) does it.
 
 ```ts
 type Range = "7" | "30" | "90" | "all";
@@ -53,11 +57,11 @@ Query:
 |---|---|
 | `search` | free text; matches name, email (contains, case-insensitive) or exact user id (GUID) |
 | `onboarding` | `completed` (status ACTIVE) · `partial` (PENDING_SECOND_ONBOARDING) · `pending` (PENDING_ONBOARDING) · `notCompleted` (pending + partial) |
-| `subscription` | a `SubscriptionBucket`, or `renewsThisWeek` (renews and expiresAt within 7 days), or `grant` (active complimentary access) |
+| `subscription` | a `SubscriptionBucket`, or `active` (paid access today: renews + canceledWithAccess), `renewsThisWeek` (renews and expiresAt within 7 days), `grant` (active complimentary access), `any` (ever purchased, or active complimentary access) |
 | `country` | ISO 3166-1 alpha-2 (upper case) |
 | `language` | `es` · `en` |
 | `leftAt` | onboarding screen id: people with an account whose onboarding stopped on that screen |
-| `question`, `answer` | both together: users whose onboarding answer to `question` includes `answer` (exact strings as in `onboardingAnswers`); `question=breakupMotives` filters by the second-part motives |
+| `question`, `answer` | both together, each repeatable: users whose answer to any of the `question` keys includes any of the `answer` values (exact strings as in `onboardingAnswers`, so the es and en variants of one answer go together); `question=breakupMotives` filters by the second-part motives |
 | `sort` | `createdAt` (default, desc) · `name` · `email` · `lastLogin` · `age` · `expiresAt` |
 | `desc` | `true`/`false` (default depends on column: text asc, dates desc) |
 | `page`, `pageSize` | paging |
@@ -109,13 +113,12 @@ type UserDetail = {
   country: string | null; language: string | null;   // as in UserListItem
   providers: ("GOOGLE" | "APPLE")[];
 
-  // Privacy: the ex's name and the future-me message text are NEVER returned.
   onboarding: null | {
     answers: Record<string, string[]>;   // question key -> chosen answers, as the app sent them
-    hasExName: boolean;
-    futureMessageLength: number | null;  // characters; null if not written
+    exName: string | null;               // null if not written
+    futureMessage: string | null;        // the future-me message; null if not written
     breakupMotives: string[];
-    commitmentSignedAt: string | null;
+    commitmentSignedAt: string | null;   // UTC, stamped by the server on the first POST /api/users/commitment
   };
 
   subscription: null | {
@@ -156,7 +159,7 @@ type UserDetail = {
     blockedUsers: number; blockedBy: number;
   };
 
-  // Counts only, never message text.
+  // Counts; the messages are in GET /users/{id}/ninety.
   chat: {
     userMessages: number; assistantMessages: number; conversations: number;
     voiceCalls: number; voiceSeconds: number;
@@ -165,6 +168,15 @@ type UserDetail = {
 
   feedbackCount: number;
 };
+```
+
+### `GET /api/backoffice/users/{id}/ninety`
+
+The person's Ninety conversation (every conversation of theirs, system prompts left out), newest first.
+`page`, `pageSize`. Response `Paged<ChatMessage>`:
+
+```ts
+type ChatMessage = { id: string; conversationId: string; role: "User" | "Assistant"; content: string; createdAt: string };
 ```
 
 ### `PATCH /api/backoffice/users/{id}`
@@ -184,15 +196,15 @@ through today, with zeros on days without activity.
 
 ### `GET /api/backoffice/metrics/overview?range=&country=&language=`
 
-`country`/`language` filter the cohort (`funnel`, `perDay`, `breakdowns`, `onboardingAnswers`,
-`breakupMotives`); `subscriptions`, `mrrEstimate` and `collected` stay global.
+`country`/`language` filter the cohort (`funnel`, `perDay`, `breakdowns`, `onboardingAnswers`);
+`subscriptions`, `mrrEstimate` and `collected` stay global.
 
 ```ts
 type Overview = {
   range: Range; from: string | null; to: string;
   funnel: {
     downloads: number;            // users created in range (sign-up; there is no install event)
-    onboardingCompleted: number;  // of those, status ACTIVE
+    onboardingCompleted: number;  // of those, status ACTIVE (finished the second part: ex name + motives, after the paywall)
     subscribed: number;           // of those, ever purchased
     withAccessToday: number;      // of those, premium today (subscription or grant)
   };
@@ -207,9 +219,12 @@ type Overview = {
     country:  { key: string; users: number; subscribed: number }[];   // ISO alpha-2 | "UNKNOWN", most users first
   };
   onboardingAnswers: { question: string; answered: number; options: { answer: string; count: number }[] }[];
-  breakupMotives: { answer: string; count: number }[];
 };
 ```
+
+`onboardingAnswers` groups by the stored key and answer as the app sent them (current keys like `YOUR_GOALS`,
+older app versions sent the question title; answers are in the app language). The frontend folds en answers and
+old titles into one Spanish row (`mergeAnswers` in `src/lib/tracking/labels.ts`).
 
 Prices come from RevenueCat webhooks (they vary by country): every `INITIAL_PURCHASE`, `RENEWAL` and
 `NON_RENEWING_PURCHASE` is stored as a payment (idempotent by transaction id; `REFUND` or a cancellation
@@ -246,6 +261,16 @@ type OnboardingFunnel = {
 };
 ```
 
+### `GET /api/backoffice/metrics/onboarding/breakup-motives?range=&country=&language=`
+
+What each person wrote as breakup motives in the second part of the onboarding (free text), for users created
+in the range (same cohort and filters as `overview`), newest sign-up first. `page`, `pageSize`.
+
+```ts
+type BreakupMotivesEntry = { userId: string; name: string | null; email: string; status: UserStatus;
+                             createdAt: string | null; motives: string[] };
+```
+
 ### `GET /api/backoffice/metrics/subscriptions?range=`
 
 Counts are the state **today**; `perDay` follows `range`.
@@ -258,12 +283,17 @@ type SubscriptionsMetrics = {
   collected: Overview["collected"];
   byProduct: { productId: string; active: number; renewing: number }[];
   perDay: { date: string; new: number; canceled: number }[]; // new = first mirrored purchase; canceled = unsubscribe detected
-  cancelReasons: { total: number; recent: { feedbackId: string; userId: string | null; at: string; message: string }[] };
+  cancelReasons: { total: number };   // messages in range; the list is GET /metrics/subscriptions/cancel-reasons
   firstRenewal: { eligible: number; renewed: number; rate: number | null }; // approximation, see notes
 };
 ```
 
-Lists per bucket: use `GET /users?subscription=<bucket>&sort=expiresAt`.
+Lists per bucket: use `GET /users?subscription=<bucket>&sort=expiresAt` (`any` for every subscriber).
+
+### `GET /api/backoffice/metrics/subscriptions/cancel-reasons?range=`
+
+The cancellation form messages in the range, newest first. `page`, `pageSize`.
+Response `Paged<{ feedbackId: string; userId: string | null; at: string; message: string }>`.
 
 ### `GET /api/backoffice/metrics/usage?range=`
 
@@ -289,9 +319,13 @@ type NinetyMetrics = {
             voiceCalls: number; voiceMinutes: number };
   perDay: { date: string; userMessages: number; users: number }[];
   perHour: { hour: number; userMessages: number }[];   // 0..23, UTC
-  topUsers: { userId: string; name: string | null; email: string | null; userMessages: number; lastMessageAt: string }[]; // top 20
 };
 ```
+
+### `GET /api/backoffice/metrics/ninety/users?range=`
+
+Who writes the most in the range, most messages first. `page`, `pageSize`.
+Response `Paged<{ userId: string; name: string | null; email: string | null; userMessages: number; lastMessageAt: string }>`.
 
 ---
 
@@ -432,7 +466,6 @@ type AuditEntry = {
 | Exact first-renewal rate | Approximated: `renewed` = latest purchase at least 20 days after first mirrored purchase. |
 | Cancel reason per subscription | Only free-text feedback of type `SubscriptionCancellation`, not linked to the RevenueCat event. |
 | Counter reset history, resets from panic button, panic-button opens, breathings completed, app opens, letters, future-message events | No events stored; a reset replaces the plan row. |
-| Reading a user's Ninety conversation | Deliberately not exposed (privacy). Only counts. |
 | Challenge "who completes it" by plan day, people per day today | Only `activeUsersToday` per challenge. |
 | Phrase/fact daily rotation in list order | The app picks a random published item per day; order only affects the backoffice list. |
 | Screenshot attachments on feedback | Not stored. |

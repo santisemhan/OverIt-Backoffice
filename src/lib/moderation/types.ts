@@ -5,7 +5,7 @@ export type InboxType = "report" | "bug" | "suggestion" | "other" | "subscriptio
 export type ReportReason = "Spam" | "Harassment" | "Hate" | "Inappropriate" | "SelfHarm" | "Other";
 export type ModerationFlag =
   "Harassment" | "Hate" | "Sexual" | "Violence" | "SelfHarm" | "Spam" | "PersonalData" | "Other";
-export type ModerationStatus = "review" | "all" | "deleted";
+export type ModerationStatus = "review" | "all" | "deleted" | "any";
 export type ModerationKind = "posts" | "comments";
 
 export interface ModerationReport {
@@ -101,13 +101,14 @@ export interface NinetyMetrics {
   };
   perDay: { date: string; userMessages: number; users: number }[];
   perHour: { hour: number; userMessages: number }[];
-  topUsers: {
-    userId: string;
-    name: string | null;
-    email: string | null;
-    userMessages: number;
-    lastMessageAt: string;
-  }[];
+}
+
+export interface NinetyTopUser {
+  userId: string;
+  name: string | null;
+  email: string | null;
+  userMessages: number;
+  lastMessageAt: string;
 }
 
 export interface Paged<T> {

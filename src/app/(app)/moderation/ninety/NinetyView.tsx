@@ -8,7 +8,7 @@ import { Panel } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatTile } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { PageSkeleton } from "@/components/ui/Skeleton";
+import { PageSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { Num } from "@/components/ui/Stat";
 import { Segmented } from "@/components/ui/Tabs";
 import { Columns, SERIES, TimeChart, WithTable } from "@/components/ui/charts";
@@ -16,29 +16,30 @@ import { Icon } from "@/components/ui/icons";
 import { describeError } from "@/lib/api";
 import { useTrackingFilters } from "@/lib/filters";
 import { dayShort, n, n1, plural } from "@/lib/format";
-import { useNinety } from "@/lib/moderation/queries";
-import { displayName, useNow, UserAvatar } from "../_shared/ui";
+import { useNinety, useNinetyUsers } from "@/lib/moderation/queries";
+import { displayName, Pager, useNow, UserAvatar } from "../_shared/ui";
 import { ago } from "@/lib/format";
 
 /*
  * Moderation → Ninety. How the chatbot is used in the period: messages and people per day, the hour people write
- * and who writes the most. Counts only: conversations are never exposed (privacy), and there is no topic data.
+ * and who writes the most (paged). Each conversation is in the person's profile; there is no topic data.
  */
 
 const hh = (h: number) => `${String(h).padStart(2, "0")} h`;
+const TOP_PAGE_SIZE = 10;
 
 export function NinetyView() {
   const { filters } = useTrackingFilters();
   const q = useNinety(filters.range);
   const [metric, setMetric] = useState<"msgs" | "people">("msgs");
+  const [paging, setPaging] = useState({ range: filters.range, page: 1 });
+  const page = paging.range === filters.range ? paging.page : 1;
+  const top = useNinetyUsers(filters.range, page, TOP_PAGE_SIZE);
   const now = useNow();
 
   const header = (
     <>
-      <PageHeader
-        title="Ninety"
-        sub="Cómo usan el chatbot: cuánto, cuándo y quiénes. Nunca se muestra lo que escriben."
-      />
+      <PageHeader title="Ninety" sub="Cómo usan el chatbot: cuánto, cuándo y quiénes." />
       <FilterBar country={false} lang={false} />
     </>
   );
@@ -180,16 +181,18 @@ export function NinetyView() {
             labelEvery={3}
           />
         </Panel>
-        <Panel title="Quiénes más le escriben" sub="En el período. Solo la cantidad, nunca el contenido.">
-          {d.topUsers.length ? (
+        <Panel title="Quiénes más le escriben" sub="En el período. La conversación está en el perfil de cada persona.">
+          {top.data?.items.length ? (
             <ol className="divide-y divide-bo-line">
-              {d.topUsers.map((x, i) => (
+              {top.data.items.map((x, i) => (
                 <li key={x.userId}>
                   <Link
-                    href={`/tracking/users/${x.userId}`}
+                    href={`/tracking/users/${x.userId}?tab=ninety`}
                     className="-mx-2 flex w-[calc(100%+16px)] press items-center gap-3 rounded-[10px] px-2 py-2.5 text-left hover:bg-bo-soft"
                   >
-                    <span className="w-5 text-right text-[12.5px] font-bold text-ink-60 tnum">{i + 1}</span>
+                    <span className="w-5 text-right text-[12.5px] font-bold text-ink-60 tnum">
+                      {(page - 1) * TOP_PAGE_SIZE + i + 1}
+                    </span>
                     <UserAvatar id={x.userId} size={32} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14px] font-bold text-ink">{displayName(x)}</span>
@@ -202,8 +205,19 @@ export function NinetyView() {
                 </li>
               ))}
             </ol>
+          ) : top.isPending ? (
+            <Skeleton className="h-[220px] rounded-[14px]" />
           ) : (
             <EmptyState compact title="Nadie le escribió en este período" />
+          )}
+          {top.data && (
+            <Pager
+              page={page}
+              totalPages={top.data.totalPages}
+              totalCount={top.data.totalCount}
+              onPage={(p) => setPaging({ range: filters.range, page: p })}
+              busy={top.isFetching}
+            />
           )}
         </Panel>
       </div>

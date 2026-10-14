@@ -18,7 +18,7 @@ import type { ToneId } from "@/lib/tones";
 import { dayKey, EMOTION_LABEL, FEATURE_LABEL, pct } from "@/lib/tracking/labels";
 import { useUsage } from "@/lib/tracking/queries";
 import type { FeatureKey, UsageMetrics } from "@/lib/tracking/types";
-import { ErrorPanel, NotMeasured } from "../_ui";
+import { ErrorPanel } from "../_ui";
 
 /*
  * Tracking → Usage. Distinct active people per day and what they use. Only actions the backend stores count
@@ -184,12 +184,6 @@ export function Usage() {
               ) : (
                 <EmptyState compact title="Sin datos" />
               )}
-            </Panel>
-          </div>
-
-          <div className="mt-5">
-            <Panel title="Respiraciones, botón de pánico, reinicios y aperturas">
-              <NotMeasured text="La app no registra estos eventos en el servidor todavía." />
             </Panel>
           </div>
         </>

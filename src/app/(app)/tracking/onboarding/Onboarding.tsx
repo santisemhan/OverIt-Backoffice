@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Card";
 import { BarList, SERIES, TipRow } from "@/components/ui/charts";
+import { Pager } from "@/components/ui/DataTable";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { HScroll } from "@/components/ui/HScroll";
 import { Icon } from "@/components/ui/icons";
@@ -18,11 +19,10 @@ import { PageSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { Meter, Num } from "@/components/ui/Stat";
 import { cx } from "@/lib/cx";
 import { filtersQuery, useTrackingFilters } from "@/lib/filters";
-import { n, p, plural, secs } from "@/lib/format";
-import { answerLabel, pct, questionLabel, sortQuestions } from "@/lib/tracking/labels";
+import { dayLong, n, p, plural, secs } from "@/lib/format";
+import { mergeAnswers, pct, questionLabel, ts, type MergedAnswer, type MergedQuestion } from "@/lib/tracking/labels";
 import { funnelRows, PAYWALL, shot, SIGN_UP, STEPS, type FunnelRow } from "@/lib/tracking/onboarding";
-import { useOnboardingFunnel, useOverview, useUsers } from "@/lib/tracking/queries";
-import type { Overview } from "@/lib/tracking/types";
+import { useBreakupMotives, useOnboardingFunnel, useOverview, useUsers } from "@/lib/tracking/queries";
 import { ErrorPanel, UserCell } from "../_ui";
 
 /*
@@ -30,8 +30,11 @@ import { ErrorPanel, UserCell } from "../_ui";
  * screens with their numbers, the detail of the picked screen (?screen=<id>) and everything people answered. Screens
  * up to "plan" happen before sign-up, so they count installs; the answers count people who signed up in the period.
  */
-/** Usuarios filtered by one onboarding answer. */
-const answerHref = (question: string, answer: string) => `/tracking/users?${new URLSearchParams({ question, answer })}`;
+/** Usuarios filtered by one onboarding answer, in every language and key it was stored with. */
+const answerHref = (q: MergedQuestion, a: MergedAnswer) =>
+  `/tracking/users?${new URLSearchParams([...q.keys.map((k) => ["question", k]), ...a.values.map((v) => ["answer", v])])}`;
+
+const MOTIVES_PAGE_SIZE = 10;
 
 export function Onboarding() {
   const { filters } = useTrackingFilters();
@@ -42,6 +45,7 @@ export function Onboarding() {
   const f = useOnboardingFunnel(filters);
   const d = q.data;
   const fun = useMemo(() => (f.data ? funnelRows(f.data) : null), [f.data]);
+  const merged = useMemo(() => (d ? mergeAnswers(d.onboardingAnswers) : []), [d]);
   const fromUrl = params.get("screen");
   const sel = STEPS.find((s) => s.id === fromUrl)?.id ?? fun?.worst?.step.id ?? STEPS[0].id;
   const strip = useRef<HTMLDivElement>(null);
@@ -192,7 +196,7 @@ export function Onboarding() {
           <div ref={detail} className="scroll-mt-28 lg:scroll-mt-6">
             <StepDetail
               row={fun.rows.find((r) => r.step.id === sel)!}
-              d={d}
+              merged={merged}
               worst={sel === fun.worst?.step.id}
               onPick={(id) => pickStep(id)}
             />
@@ -202,74 +206,149 @@ export function Onboarding() {
             tone="lilac"
             icon={<Icon.chat size={18} />}
             title="Qué respondieron"
-            sub="Porcentaje sobre quienes respondieron cada pregunta. En las de varias opciones suman más de 100%. Tocá una respuesta para ver quiénes la eligieron."
+            sub="Porcentaje sobre quienes respondieron cada pregunta. En las de varias opciones suman más de 100%. Las respuestas en inglés se suman a su par en español. Tocá una respuesta para ver quiénes la eligieron."
           />
-          {d.onboardingAnswers.length ? (
-            <div className="grid gap-5 lg:grid-cols-2">
-              {sortQuestions(d.onboardingAnswers).map((qa, i) => (
-                <Panel
-                  key={qa.question}
-                  title={questionLabel(qa.question)}
-                  sub={plural(qa.answered, "respuesta", "respuestas")}
-                >
-                  <BarList
-                    color={SERIES[i % SERIES.length]}
-                    onPick={(a) => router.push(answerHref(qa.question, a))}
-                    rows={[...qa.options]
-                      .sort((a, b) => b.count - a.count)
-                      .map((o) => ({
-                        key: o.answer,
-                        label: answerLabel(o.answer),
-                        value: o.count,
-                        pct: pct(o.count, qa.answered),
-                      }))}
-                  />
-                </Panel>
-              ))}
-            </div>
-          ) : (
-            <Panel>
+          <Panel pad={false}>
+            {merged.length ? (
+              <AnswersTable questions={merged} onPick={(qa, a) => router.push(answerHref(qa, a))} />
+            ) : (
               <EmptyState compact title="Nadie respondió el onboarding en este período" />
-            </Panel>
-          )}
+            )}
+          </Panel>
 
           <SectionTitle
             tone="peach"
             icon={<Icon.heart size={18} />}
             title="Por qué terminó"
-            sub="Los motivos de la segunda parte del onboarding."
+            sub="Lo que escribió cada persona en la segunda parte del onboarding."
           />
-          <Panel>
-            {d.breakupMotives.length ? (
-              (() => {
-                const total = d.breakupMotives.reduce((a, m) => a + m.count, 0);
-                return (
-                  <BarList
-                    color={SERIES[1]}
-                    format={(r) => n(r.value)}
-                    onPick={(a) => router.push(answerHref("breakupMotives", a))}
-                    rows={[...d.breakupMotives]
-                      .sort((a, b) => b.count - a.count)
-                      .map((m) => ({
-                        key: m.answer,
-                        label: answerLabel(m.answer),
-                        value: m.count,
-                        pct: pct(m.count, total),
-                      }))}
-                  />
-                );
-              })()
-            ) : (
-              <EmptyState compact title="Nadie cargó motivos en este período" />
-            )}
-          </Panel>
-          <p className="mt-4 flex items-center gap-2 text-[12.5px] font-medium text-ink-60">
-            <Icon.lock size={14} /> El nombre de su ex y el mensaje para su yo del futuro son privados: no se muestran
-            acá.
-          </p>
+          <BreakupMotives />
         </>
       )}
     </>
+  );
+}
+
+/* ─────────── What they answered (one row per answer, grouped by question) ─────────── */
+
+function AnswersTable({
+  questions,
+  onPick,
+}: {
+  questions: MergedQuestion[];
+  onPick: (q: MergedQuestion, a: MergedAnswer) => void;
+}) {
+  return (
+    <HScroll label="Qué respondieron" arrows={false}>
+      <table className="w-full min-w-[640px] text-left">
+        <thead>
+          <tr className="text-[12.5px] text-ink-60">
+            <th scope="col" className="border-b border-bo-line bg-bo-soft py-3 pr-3 pl-5 font-bold">
+              Pregunta
+            </th>
+            <th scope="col" className="border-b border-bo-line bg-bo-soft px-3 py-3 font-bold">
+              Respuesta
+            </th>
+            <th scope="col" className="border-b border-bo-line bg-bo-soft px-3 py-3 text-right font-bold">
+              Personas
+            </th>
+            <th scope="col" className="border-b border-bo-line bg-bo-soft py-3 pr-5 pl-3 text-right font-bold">
+              %
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {questions.map((qa) =>
+            qa.options.map((o, i) => (
+              <tr
+                key={`${qa.question}-${o.label}`}
+                className={cx(i === qa.options.length - 1 && "border-b border-bo-line last:border-0")}
+              >
+                {i === 0 && (
+                  <th
+                    scope="rowgroup"
+                    rowSpan={qa.options.length}
+                    className="w-[34%] py-2.5 pr-3 pl-5 align-top text-[13px] font-bold text-ink"
+                  >
+                    {questionLabel(qa.question)}
+                    <span className="mt-0.5 block text-[12px] font-medium text-ink-60">
+                      {plural(qa.answered, "respuesta", "respuestas")}
+                    </span>
+                  </th>
+                )}
+                <td className="px-3 py-1">
+                  <button
+                    type="button"
+                    onClick={() => onPick(qa, o)}
+                    className="-mx-2 press rounded-[8px] px-2 py-1.5 text-left text-[13px] font-bold text-ink hover:bg-bo-soft hover:text-purple"
+                  >
+                    {o.label}
+                  </button>
+                </td>
+                <td className="px-3 py-2.5 text-right text-[13px] font-medium text-ink-70 tnum">{n(o.count)}</td>
+                <td className="py-2.5 pr-5 pl-3 text-right text-[13px] font-bold text-ink tnum">
+                  {p(pct(o.count, qa.answered))}
+                </td>
+              </tr>
+            )),
+          )}
+        </tbody>
+      </table>
+    </HScroll>
+  );
+}
+
+/* ─────────── Breakup motives (free text, paged) ─────────── */
+
+function BreakupMotives() {
+  const { filters } = useTrackingFilters();
+  const key = JSON.stringify(filters);
+  const [paging, setPaging] = useState({ key, page: 1 });
+  const page = paging.key === key ? paging.page : 1;
+  const q = useBreakupMotives(filters, page, MOTIVES_PAGE_SIZE);
+  return (
+    <Panel pad={false}>
+      {q.isError && !q.data ? (
+        <EmptyState
+          compact
+          icon={<Icon.alert size={22} />}
+          title="No pudimos cargar los motivos"
+          action={<Button onClick={() => void q.refetch()}>Reintentar</Button>}
+        />
+      ) : !q.data ? (
+        <div className="space-y-2 p-5">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[52px] rounded-[12px]" />
+          ))}
+        </div>
+      ) : q.data.items.length ? (
+        <>
+          <ul className="divide-y divide-bo-line">
+            {q.data.items.map((m) => (
+              <li key={m.userId} className="px-5 py-3.5">
+                <p className="text-[13.5px] font-medium break-words text-ink">
+                  {m.motives.map((t) => `“${t}”`).join(" · ")}
+                </p>
+                <p className="mt-1 text-[12px] font-medium text-ink-60">
+                  <Link href={`/tracking/users/${m.userId}`} className="font-bold text-purple hover:underline">
+                    {m.name?.trim() || m.email}
+                  </Link>
+                  {m.createdAt && ` · se registró el ${dayLong(ts(m.createdAt))}`}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <Pager
+            page={page}
+            pageSize={q.data.pageSize}
+            totalCount={q.data.totalCount}
+            onPage={(next) => setPaging({ key, page: next })}
+          />
+        </>
+      ) : (
+        <EmptyState compact title="Nadie cargó motivos en este período" />
+      )}
+    </Panel>
   );
 }
 
@@ -471,12 +550,12 @@ function StepCard({ r, on, worst, onClick }: { r: FunnelRow; on: boolean; worst:
 
 function StepDetail({
   row,
-  d,
+  merged,
   worst,
   onPick,
 }: {
   row: FunnelRow;
-  d: Overview;
+  merged: MergedQuestion[];
   worst: boolean;
   onPick: (id: string) => void;
 }) {
@@ -497,7 +576,7 @@ function StepDetail({
     { page: 1, pageSize: 5, sort: null },
     !anonymous,
   );
-  const answers = step.question ? d.onboardingAnswers.find((a) => a.question === step.question) : undefined;
+  const answers = step.question ? merged.find((a) => a.question === step.question) : undefined;
   const usersHref = () => {
     const q = new URLSearchParams(filtersQuery(params));
     q.delete("period");
@@ -570,15 +649,16 @@ function StepDetail({
                     {`${plural(answers.answered, "respuesta", "respuestas")} de quienes se registraron en el período`}
                   </p>
                   <BarList
-                    onPick={(a) => router.push(answerHref(answers.question, a))}
-                    rows={[...answers.options]
-                      .sort((a, b) => b.count - a.count)
-                      .map((o) => ({
-                        key: o.answer,
-                        label: answerLabel(o.answer),
-                        value: o.count,
-                        pct: pct(o.count, answers.answered),
-                      }))}
+                    onPick={(label) => {
+                      const o = answers.options.find((x) => x.label === label);
+                      if (o) router.push(answerHref(answers, o));
+                    }}
+                    rows={answers.options.map((o) => ({
+                      key: o.label,
+                      label: o.label,
+                      value: o.count,
+                      pct: pct(o.count, answers.answered),
+                    }))}
                   />
                 </>
               ) : (
