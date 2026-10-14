@@ -28,7 +28,7 @@ import { ErrorPanel, UserCell } from "../_ui";
 /*
  * Tracking → Onboarding. The whole funnel (one column per screen: who went on and who left there), the strip of real
  * screens with their numbers, the detail of the picked screen (?screen=<id>) and everything people answered. Screens
- * before "plan" happen before sign-up, so they count installs; the answers count people who signed up in the period.
+ * up to "plan" happen before sign-up, so they count installs; the answers count people who signed up in the period.
  */
 /** Usuarios filtered by one onboarding answer. */
 const answerHref = (question: string, answer: string) => `/tracking/users?${new URLSearchParams({ question, answer })}`;

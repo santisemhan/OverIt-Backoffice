@@ -2,7 +2,7 @@ import type { OnboardingFunnel } from "./types";
 
 /*
  * The onboarding screens in the app's order (same ids as OverIt-Mobile src/onboarding/flow.ts and
- * public/screens/<id>.webp). `skip`: the screen has a "Saltar" button. Screens before "plan" happen before sign-up.
+ * public/screens/<id>.webp). `skip`: the screen has a "Saltar" button. Screens up to "plan" (where people sign up) happen before sign-up.
  */
 
 export interface OnboardingStep {
@@ -74,7 +74,7 @@ export const STEPS: OnboardingStep[] = [
   { id: "paywall", label: "Paywall", title: "Tu camino está listo" },
 ];
 
-export const SIGN_UP = STEPS.findIndex((s) => s.id === "plan");
+export const SIGN_UP = STEPS.findIndex((s) => s.id === "referral");
 export const PAYWALL = STEPS.length - 1;
 export const shot = (id: string) => `/screens/${id}.webp`;
 
