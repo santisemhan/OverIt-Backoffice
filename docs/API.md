@@ -24,9 +24,8 @@ type Paged<T> = { items: T[]; page: number; pageSize: number; totalCount: number
   Malformed JSON or an unknown enum string is rejected by ASP.NET before that, as a standard
   ProblemDetails body: `400 { title: string; status: 400; errors: Record<string, string[]> }`.
 - **Audit.** Every mutation (`POST/PUT/PATCH/DELETE`) writes an audit entry (see Audit log).
-- **Filters.** Metrics take `range=7|30|90|all` (default `all`). **`country` and `lang` are
-  NOT supported**: the backend does not store a user's country or app language (see
-  "Not available"). The params are accepted and ignored.
+- **Filters.** Metrics take `range=7|30|90|all` (default `all`). `overview` and `onboarding` also take
+  `country` (ISO 3166-1 alpha-2) and `language` (`es`|`en`); the other metrics ignore them.
 
 ```ts
 type Range = "7" | "30" | "90" | "all";
@@ -56,6 +55,9 @@ Query:
 | `search` | free text; matches name, email (contains, case-insensitive) or exact user id (GUID) |
 | `onboarding` | `completed` (status ACTIVE) · `partial` (PENDING_SECOND_ONBOARDING) · `pending` (PENDING_ONBOARDING) · `notCompleted` (pending + partial) |
 | `subscription` | a `SubscriptionBucket`, or `renewsThisWeek` (renews and expiresAt within 7 days), or `grant` (active complimentary access) |
+| `country` | ISO 3166-1 alpha-2 (upper case) |
+| `language` | `es` · `en` |
+| `leftAt` | onboarding screen id: people with an account whose onboarding stopped on that screen |
 | `question`, `answer` | both together: users whose onboarding answer to `question` includes `answer` (exact strings as in `onboardingAnswers`); `question=breakupMotives` filters by the second-part motives |
 | `sort` | `createdAt` (default, desc) · `name` · `email` · `lastLogin` · `age` · `expiresAt` |
 | `desc` | `true`/`false` (default depends on column: text asc, dates desc) |
@@ -76,6 +78,8 @@ type UserListItem = {
   createdAt: string | null;         // first sign-up; null for very old rows without an account date
   lastLogin: string;
   lastDevice: string | null;
+  country: string | null;           // ISO alpha-2, from the app's X-Country header (refreshed on login and token refresh)
+  language: string | null;          // "es" | "en", the app language from Accept-Language (same refresh)
   providers: ("GOOGLE" | "APPLE")[];
   subscription: {
     bucket: SubscriptionBucket;
@@ -89,6 +93,11 @@ type UserListItem = {
 };
 ```
 
+### `GET /api/backoffice/users/countries`
+
+`{ country: string; users: number }[]` — every country with at least one user (all time), most users first.
+For the country filter; names come from `Intl.DisplayNames(["es"], { type: "region" })`.
+
 ### `GET /api/backoffice/users/{id}`
 
 `404` if missing. Response:
@@ -98,6 +107,7 @@ type UserDetail = {
   id: string; email: string; name: string | null; age: number | null; gender: Gender | null;
   imageUrl: string | null; profilePic: string | null; status: UserStatus;
   createdAt: string | null; lastLogin: string; lastDevice: string | null;
+  country: string | null; language: string | null;   // as in UserListItem
   providers: ("GOOGLE" | "APPLE")[];
 
   // Privacy: the ex's name and the future-me message text are NEVER returned.
@@ -173,7 +183,10 @@ event metrics count events **that happened** in the range. Every `perDay`/`activ
 continuous: one entry per UTC day from the start of the range (or the first day with data for `all`)
 through today, with zeros on days without activity.
 
-### `GET /api/backoffice/metrics/overview?range=`
+### `GET /api/backoffice/metrics/overview?range=&country=&language=`
+
+`country`/`language` filter the cohort (`funnel`, `perDay`, `breakdowns`, `onboardingAnswers`,
+`breakupMotives`); `subscriptions`, `mrrEstimate` and `collected` stay global.
 
 ```ts
 type Overview = {
@@ -191,8 +204,8 @@ type Overview = {
   breakdowns: {
     gender: { key: Gender | "UNKNOWN"; users: number; subscribed: number }[];
     age:    { key: "<18" | "18-24" | "25-34" | "35-44" | "45-54" | "55+" | "UNKNOWN"; users: number; subscribed: number }[];
-    language: null;   // not stored
-    country: null;    // not stored
+    language: { key: string; users: number; subscribed: number }[];   // "es" | "en" | "UNKNOWN", most users first
+    country:  { key: string; users: number; subscribed: number }[];   // ISO alpha-2 | "UNKNOWN", most users first
   };
   onboardingAnswers: { question: string; answered: number; options: { answer: string; count: number }[] }[];
   breakupMotives: { answer: string; count: number }[];
@@ -211,6 +224,27 @@ type MrrEstimate = { amount: number; netAmount: number; currency: "USD"; unprice
 type Collected = { grossUsd: number; netUsd: number; payments: number;                    // refunded charges excluded
   refundedUsd: number; refunds: number;
   byCurrency: { currency: string; amount: number; amountUsd: number; payments: number }[] };
+```
+
+### `GET /api/backoffice/metrics/onboarding?range=&country=&language=`
+
+Per-screen onboarding funnel, built from the screen events the app sends (`POST /api/onboarding/screens`, anonymous
+allowed; events are linked to the account once the person signs in). `range` filters by each install's first
+screen view; `country`/`language` use the headers sent with the events. Screens before `plan` happen before
+sign-up, so they count installs, not accounts.
+
+```ts
+type OnboardingFunnel = {
+  devices: number;                // installs whose first onboarding screen view falls in the range
+  screens: {
+    screen: string;               // the app's screen id ("opening", "hurts", ..., "paywall")
+    reached: number;              // installs that saw it
+    skipped: number;              // left it with "Saltar"
+    left: number;                 // last screen and never left it (closed the app there, or still there)
+    leftWithAccount: number;      // of `left`, linked to an account (list them: GET /users?leftAt=<screen>)
+    medianSeconds: number | null; // median time on the screen (visits that ended)
+  }[];                            // one row per screen with data, unordered
+};
 ```
 
 ### `GET /api/backoffice/metrics/subscriptions?range=`
@@ -265,7 +299,8 @@ type NinetyMetrics = {
 ## 3. Moderation
 
 A post/comment is **in review** when it is not removed and has at least one report that is
-not `Resolved`. Removing, restoring or dismissing ("no infringe") resolves its open reports.
+not `Resolved`, or has a `flag` and was never reviewed. Removing, restoring or dismissing ("no infringe")
+resolves its open reports; dismissing also sets `reviewedAt` (the flag stays).
 Removed content is hidden from the app (feed, post detail, comments, counts).
 
 ### `GET /api/backoffice/moderation/posts`
@@ -273,8 +308,7 @@ Removed content is hidden from the app (feed, post detail, comments, counts).
 
 Query: `status=review|all|deleted|any` (default `review`; `all` = not removed; `any` = removed or not),
 `search` (text, author name/email), `userId` (author), `postId` (comments only: the comments of one post),
-`page`, `pageSize`. Ordered newest first (review: most
-reports first, then newest).
+`page`, `pageSize`. Ordered newest first (review: `SelfHarm` flag first, then most open reports, then newest).
 
 ```ts
 type ModerationReport = { reportId: string; reporterId: string; reason: "Spam" | "Harassment" | "Hate" | "Inappropriate" | "SelfHarm" | "Other";
@@ -286,6 +320,8 @@ type ModerationPost = {
   reports: number; openReports: number; reportsDetail: ModerationReport[];
   removedAt: string | null; removedByAdminId: string | null; removalReason: string | null;
   reviewedAt: string | null;           // last "no infringe"
+  // Set by the AI moderator at publish time for text it let through but wants a person to look at.
+  flag: "Harassment" | "Hate" | "Sexual" | "Violence" | "SelfHarm" | "Spam" | "PersonalData" | "Other" | null;
 };
 type ModerationComment = Omit<ModerationPost, "comments" | "isAnonymous" | "language"> & {
   postId: string; postText: string;
@@ -294,7 +330,8 @@ type ModerationComment = Omit<ModerationPost, "comments" | "isAnonymous" | "lang
 
 ### `GET /api/backoffice/moderation/counts`
 
-`{ postsToReview: number; commentsToReview: number; inboxNew: number }` — for badges.
+`{ postsToReview: number; commentsToReview: number; postsAtRisk: number; commentsAtRisk: number; inboxNew: number }`
+— for badges. `*ToReview` include flagged items; `*AtRisk` = in review with a `SelfHarm` flag.
 
 ### Actions
 
@@ -471,15 +508,12 @@ backoffice endpoints above.
 
 | Design wants | Why |
 |---|---|
-| Country and app-language filters/breakdowns | Not stored per user. Would need the app to send them (e.g. on login) and a column on `User`. |
-| Per-screen onboarding funnel, time per screen, skipped answers, "closed the app here" | The app sends only the final onboarding payload; no step events. |
-| Installs ("descargas") before sign-up | No install event; "downloads" = users created (sign-up). |
+| Installs ("descargas") outside the onboarding | `metrics/onboarding` counts installs that opened the onboarding; `downloads` in the overview = users created (sign-up). |
 | Payments before webhooks were stored | Payments are built from stored RevenueCat webhooks (backfilled once at startup); older charges are unknown. Refund actions are out of scope. |
 | Exact MRR in local currencies | MRR uses RevenueCat's USD estimate of each subscription's last charge. |
 | Exact first-renewal rate | Approximated: `renewed` = latest purchase at least 20 days after first mirrored purchase. |
 | Cancel reason per subscription | Only free-text feedback of type `SubscriptionCancellation`, not linked to the RevenueCat event. |
 | Counter reset history, resets from panic button, panic-button opens, breathings completed, app opens, letters, future-message events | No events stored; a reset replaces the plan row. |
-| Automatic moderation alerts ("posible riesgo", phone/link detection) | Not run server-side on stored content (posts are moderated by Gemini at creation; rejected ones are not stored). |
 | Reading a user's Ninety conversation | Deliberately not exposed (privacy). Only counts. |
 | Challenge "who completes it" by plan day, people per day today | Only `activeUsersToday` per challenge. |
 | Phrase/fact daily rotation in list order | The app picks a random published item per day; order only affects the backoffice list. |

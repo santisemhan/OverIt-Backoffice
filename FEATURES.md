@@ -10,7 +10,7 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 - [x] Shell: rail violeta + panel de áreas, drawer en mobile, tabs por área
 - [x] Búsqueda rápida ⌘K (usuarios y secciones)
 - [x] Filtro global de período en Trackeo
-- [ ] ~~Filtros de país e idioma~~ — el backend no guarda país ni idioma del usuario (requiere que mobile los envíe)
+- [x] Filtros de país e idioma (Resumen, Onboarding y Usuarios; el resto de Trackeo los oculta)
 - [x] Toasts con deshacer, modales de confirmación, skeletons, estados vacíos
 - [x] Policy `Backoffice.Admin` en backend + CORS para el origen del backoffice
 - [x] Historial (auditoría) de cada acción del equipo
@@ -23,16 +23,17 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 - [ ] ~~"Descargas" reales~~ — no hay evento de instalación; se usan registros
 - [x] Evolución por día/semana
 - [x] Ingresos: MRR estimado y suscripciones activas (requiere cargar `Backoffice:ProductMonthlyPrices`)
-- [ ] ~~Cobrado (ingresos reales)~~ — el espejo de RevenueCat no guarda pagos
+- [x] Cobrado (pagos de los webhooks de RevenueCat)
 - [x] Quiénes son: sexo y edad
-- [ ] ~~Idioma y países (mapa/ranking)~~ — no se guardan
+- [x] Idioma y países (mapa/ranking)
 - [x] Perfil más común (respuestas del onboarding)
-- [ ] ~~Dónde se van~~ — mobile no envía eventos por pantalla
+- [x] Dónde se van
 ### Onboarding
 - [x] KPIs empezaron / completaron / no completaron
 - [x] Distribución de respuestas por pregunta
-- [ ] Click en una respuesta → usuarios filtrados (falta filtro por respuesta en `GET users`; fácil)
-- [ ] ~~Embudo pantalla por pantalla, tiempos y "saltaron"~~ — mobile no envía eventos por pantalla
+- [x] Click en una respuesta → usuarios filtrados
+- [x] Embudo pantalla por pantalla, tiempos y "saltaron"
+- [x] Quiénes cerraron la app en cada pantalla (con cuenta) → usuarios filtrados
 ### Suscripciones
 - [x] Listas: renuevan, renuevan esta semana, cancelaron (con/sin acceso), vencidas, cortesía
 - [x] Ingreso mensual (MRR estimado)
@@ -45,7 +46,7 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 - [x] Perfil: cabecera, journey, tabs Onboarding / Progreso / Recursos / Ninety / Suscripción / Comunidad
 - [x] Cambiar nombre visible
 - [x] Acceso de cortesía (dar / quitar) desde el perfil
-- [ ] ~~Historial de cobros~~ — no se guardan pagos
+- [x] Historial de cobros
 ### Uso de la app
 - [x] Activos por día
 - [x] Bloques: emociones, retos, lecturas, favoritos, Ninety, comunidad
@@ -54,10 +55,10 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 ## Moderación
 - [x] Comunidad: para revisar / todas / eliminadas, búsqueda, filtro por usuario
 - [x] Eliminar / restaurar / "no infringe" en posts y comentarios
-- [ ] Comentarios dentro de cada post (falta filtro `postId` en `moderation/comments`; fácil)
-- [ ] ~~Alertas automáticas (posible riesgo, teléfono, links, venta)~~ — requiere clasificador en backend
+- [x] Comentarios dentro de cada post
+- [x] Alertas automáticas (las marca la IA al publicar; "posible riesgo" va primero)
 - [x] Reportes y feedback: inbox unificado, estados, filtros por tipo, acciones sobre el contenido
-- [ ] Endpoint `inbox/counts` (hoy los contadores hacen varias requests; optimización)
+- [x] Endpoint `inbox/counts`
 - [ ] ~~Captura adjunta en feedback~~ — no se guarda
 - [x] Ninety: KPIs, uso por día, por hora (UTC), top usuarios
 - [ ] ~~Ninety: temas y largo de conversaciones~~ — no se calculan
