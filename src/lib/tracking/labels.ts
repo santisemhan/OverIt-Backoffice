@@ -20,6 +20,44 @@ export const sortQuestions = <T extends { question: string }>(qs: T[]) =>
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
   });
 
+export const ANSWER_LABEL: Record<string, string> = {
+  "Less than a week": "Menos de una semana",
+  "1 to 4 weeks": "1 a 4 semanas",
+  "1 to 6 months": "1 a 6 meses",
+  "More than 6 months": "Más de 6 meses",
+  "Less than a year": "Menos de un año",
+  "1 to 5 years": "1 a 5 años",
+  "5 to 10 years": "5 a 10 años",
+  "More than 10 years": "Más de 10 años",
+  "I did": "Yo",
+  "My ex": "Mi ex",
+  "It was mutual": "Fue mutuo",
+  Infidelity: "Infidelidad",
+  "Emotional or physical distance": "Distancia emocional o física",
+  "Wear and routine": "Desgaste o rutina",
+  "It wasn’t what I was looking for": "No era lo que buscaba",
+  "I don’t know": "No lo se",
+  Anxiety: "Ansiedad",
+  "Sadness / Melancholy": "Tristeza / Melancolía",
+  Confusion: "Confusión",
+  Anger: "Ira o enojo",
+  Guilt: "Culpa",
+  "Another emotion": "Otra emoción",
+  "Checking their social media": "Revisar sus redes sociales",
+  "Rereading conversations": "Releer conversaciones",
+  "Looking at photos/videos together": "Mirar fotos/videos juntos",
+  "Imagining a reunion": "Imaginar un reencuentro",
+  "Typing a message and deleting it": "Escribirle y borrar el mensaje",
+  "Isolating myself from friends or family": "Aislarme de amigos o familia",
+  "Stop thinking about it all day": "No pensar más todo el día en eso",
+  "Rebuild my self-esteem": "Reconstruir mi autoestima",
+  "Stop idealizing the relationship": "Dejar de idealizar la relación",
+  "Be able to see my ex without pain": "Poder ver a mi ex sin dolor",
+  "Trust in love again": "Volver a confiar en el amor",
+  "More energy and motivation": "Más energía y motivación",
+};
+export const answerLabel = (k: string) => ANSWER_LABEL[k] ?? k;
+
 export const GENDER_LABEL: Record<Gender | "UNKNOWN", string> = {
   FEMALE: "Mujer",
   MALE: "Hombre",

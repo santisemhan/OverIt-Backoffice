@@ -23,6 +23,7 @@ import { cx } from "@/lib/cx";
 import { countryName, langName } from "@/lib/filters";
 import { ago, dateTime, dayLong, dayShort, n, plural, secs } from "@/lib/format";
 import {
+  answerLabel,
   dayKey,
   EMOTION_LABEL,
   GENDER_LABEL,
@@ -307,7 +308,7 @@ function OnboardingTab({ u }: { u: UserDetail }) {
                   {a.values.length ? (
                     a.values.map((v) => (
                       <Badge key={v} tone="info">
-                        {v}
+                        {answerLabel(v)}
                       </Badge>
                     ))
                   ) : (

@@ -16,7 +16,7 @@ import { api, describeError } from "@/lib/api";
 import { countryName, LANGS, langName, type Lang } from "@/lib/filters";
 import { ago, dayShort, n } from "@/lib/format";
 import { PAGE_SIZE_OPTIONS } from "@/lib/queries";
-import { BUCKET_LABEL, GENDER_LABEL, questionLabel, STATUS_LABEL, ts } from "@/lib/tracking/labels";
+import { answerLabel, BUCKET_LABEL, GENDER_LABEL, questionLabel, STATUS_LABEL, ts } from "@/lib/tracking/labels";
 import { STEPS } from "@/lib/tracking/onboarding";
 import { useCountries, useUsers, usersQueryParams, type UserListFilters } from "@/lib/tracking/queries";
 import type { OnboardingFilter, Paged, SubscriptionFilter, UserListItem } from "@/lib/tracking/types";
@@ -267,7 +267,7 @@ export function Users() {
           )}
           {answer && (
             <span className="inline-flex h-[30px] items-center gap-1 rounded-full bg-purple-10 pr-1 pl-3 text-[13px] font-bold text-info">
-              {`Respondió ${answer.question === "breakupMotives" ? "motivo" : questionLabel(answer.question)}: ${answer.answer}`}
+              {`Respondió ${answer.question === "breakupMotives" ? "motivo" : questionLabel(answer.question)}: ${answerLabel(answer.answer)}`}
               <button
                 type="button"
                 aria-label="Quitar filtro de respuesta"

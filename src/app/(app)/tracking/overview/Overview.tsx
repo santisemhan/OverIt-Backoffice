@@ -20,6 +20,7 @@ import { countryName, filtersQuery, langName, useTrackingFilters } from "@/lib/f
 import { dayShort, n, p, plural } from "@/lib/format";
 import {
   AGE_LABEL,
+  answerLabel,
   dayKey,
   GENDER_LABEL,
   MAP_ID,
@@ -265,7 +266,7 @@ export function Overview() {
                           {questionLabel(qa.question)}
                         </span>
                         <span className="shrink-0 text-right text-[13.5px] font-bold text-ink">
-                          {top ? top.answer : "—"}
+                          {top ? answerLabel(top.answer) : "—"}
                           {top && <span className="ml-1.5 text-ink-60 tnum">{p(pct(top.count, qa.answered))}</span>}
                         </span>
                       </li>

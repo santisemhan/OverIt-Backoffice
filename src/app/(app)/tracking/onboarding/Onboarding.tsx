@@ -19,7 +19,7 @@ import { Meter, Num } from "@/components/ui/Stat";
 import { cx } from "@/lib/cx";
 import { filtersQuery, useTrackingFilters } from "@/lib/filters";
 import { n, p, plural, secs } from "@/lib/format";
-import { pct, questionLabel, sortQuestions } from "@/lib/tracking/labels";
+import { answerLabel, pct, questionLabel, sortQuestions } from "@/lib/tracking/labels";
 import { funnelRows, PAYWALL, shot, SIGN_UP, STEPS, type FunnelRow } from "@/lib/tracking/onboarding";
 import { useOnboardingFunnel, useOverview, useUsers } from "@/lib/tracking/queries";
 import type { Overview } from "@/lib/tracking/types";
@@ -217,7 +217,12 @@ export function Onboarding() {
                     onPick={(a) => router.push(answerHref(qa.question, a))}
                     rows={[...qa.options]
                       .sort((a, b) => b.count - a.count)
-                      .map((o) => ({ key: o.answer, label: o.answer, value: o.count, pct: pct(o.count, qa.answered) }))}
+                      .map((o) => ({
+                        key: o.answer,
+                        label: answerLabel(o.answer),
+                        value: o.count,
+                        pct: pct(o.count, qa.answered),
+                      }))}
                   />
                 </Panel>
               ))}
@@ -245,7 +250,12 @@ export function Onboarding() {
                     onPick={(a) => router.push(answerHref("breakupMotives", a))}
                     rows={[...d.breakupMotives]
                       .sort((a, b) => b.count - a.count)
-                      .map((m) => ({ key: m.answer, label: m.answer, value: m.count, pct: pct(m.count, total) }))}
+                      .map((m) => ({
+                        key: m.answer,
+                        label: answerLabel(m.answer),
+                        value: m.count,
+                        pct: pct(m.count, total),
+                      }))}
                   />
                 );
               })()
@@ -565,7 +575,7 @@ function StepDetail({
                       .sort((a, b) => b.count - a.count)
                       .map((o) => ({
                         key: o.answer,
-                        label: o.answer,
+                        label: answerLabel(o.answer),
                         value: o.count,
                         pct: pct(o.count, answers.answered),
                       }))}
