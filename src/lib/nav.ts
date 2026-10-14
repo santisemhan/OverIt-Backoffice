@@ -7,10 +7,10 @@ import { Icon } from "@/components/ui/icons";
  * here and create its page at `/${area}/${section}`.
  */
 
-export type AreaId = "tracking" | "moderation" | "content";
+export type AreaId = "tracking" | "moderation";
 
 /** Counters shown next to a section. Values come from `useNavBadges` (components/shell/useNavBadges.ts). */
-export type NavBadge = "review" | "inbox" | "challenges" | "breaths" | "articles" | "phrases" | "facts";
+export type NavBadge = "review" | "inbox";
 
 type IconComponent = (p: { size?: number }) => ReactNode;
 
@@ -111,61 +111,6 @@ export const AREAS: Area[] = [
             icon: Icon.history,
             hint: "Cada cambio del equipo, con quién y cuándo",
           },
-        ],
-      },
-    ],
-  },
-  {
-    id: "content",
-    label: "Contenido",
-    icon: Icon.book,
-    hint: "Lo que se ve en la app: retos, recursos y textos",
-    groups: [
-      {
-        id: "path",
-        label: "Camino de 90 días",
-        items: [
-          {
-            id: "challenges",
-            label: "Retos diarios",
-            icon: Icon.flame,
-            badge: "challenges",
-            hint: "Un reto por día, en orden",
-          },
-        ],
-      },
-      {
-        id: "resources",
-        label: "Recursos",
-        items: [
-          {
-            id: "breathings",
-            label: "Respiraciones",
-            icon: Icon.wind,
-            badge: "breaths",
-            hint: "Ejercicios de respiración guiados",
-          },
-          {
-            id: "articles",
-            label: "Artículos & Tips",
-            icon: Icon.book,
-            badge: "articles",
-            hint: "Lecturas cortas con bloques",
-          },
-          {
-            id: "phrases",
-            label: "Frases",
-            icon: Icon.quote,
-            badge: "phrases",
-            hint: "Una por día, en el orden de la lista",
-          },
-        ],
-      },
-      {
-        id: "home",
-        label: "Home",
-        items: [
-          { id: "facts", label: "Datos científicos", icon: Icon.brain, badge: "facts", hint: "Uno por día en la home" },
         ],
       },
     ],

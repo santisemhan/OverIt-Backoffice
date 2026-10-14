@@ -75,5 +75,3 @@ export function secs(s: number) {
 }
 
 export const plural = (k: number, one: string, many: string) => `${n(k)} ${k === 1 ? one : many}`;
-/** Solo la palabra, según la cantidad */
-export const word = (k: number, one: string, many: string) => (Math.round(k) === 1 ? one : many);

@@ -24,7 +24,7 @@ const isidora = localFont({
 
 export const metadata: Metadata = {
   title: { default: "Over It Back Office", template: "%s · Over It Back Office" },
-  description: "Trackeo, moderación y contenido de Over It (uso interno).",
+  description: "Trackeo y moderación de Over It (uso interno).",
   applicationName: "Over It Back Office",
   // Internal tool: never indexed.
   robots: { index: false, follow: false },

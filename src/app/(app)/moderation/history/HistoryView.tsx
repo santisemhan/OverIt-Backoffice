@@ -40,7 +40,7 @@ export function HistoryView() {
     <>
       <PageHeader
         title="Historial"
-        sub="Cada acción de moderación y de contenido, con quién la hizo y cuándo."
+        sub="Cada acción de moderación, con quién la hizo y cuándo."
         actions={
           <SearchField
             label="Buscar en el historial"
@@ -113,7 +113,7 @@ export function HistoryView() {
             text={
               search
                 ? "Probá con otra palabra."
-                : "Cuando elimines algo, cambies un nombre, resuelvas un reporte o edites contenido, queda registrado acá."
+                : "Cuando elimines algo, cambies un nombre o resuelvas un reporte, queda registrado acá."
             }
           />
         </Panel>

@@ -64,16 +64,5 @@ Leyenda: `[x]` hecho · `[ ]` pendiente · `~~tachado~~` TODO(difícil): no se h
 - [ ] ~~Ninety: temas y largo de conversaciones~~ — no se calculan
 - [x] Historial de acciones del equipo
 
-## Contenido
-- [x] Retos diarios: CRUD, borradores, reordenar días, mover, duplicar, editor con preview
-- [ ] ~~% que completa cada reto~~ — no hay estadística por reto
-- [x] Respiraciones: CRUD (pasos inhala / sostén / exhala)
-- [x] Artículos & Tips: CRUD con editor de bloques
-- [x] Frases: CRUD
-- [x] Datos científicos: CRUD
-- [x] Selector de idioma (es / en)
-- [x] Endpoints de contenido sólo para admin (se quitaron create/delete de la policy `Premium` mobile)
-- [ ] Rotación diaria de frases/datos en el orden de la lista (hoy la app elige al azar)
-
 ## Fuera de alcance
 - Reembolsos.

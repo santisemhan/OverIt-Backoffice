@@ -10,7 +10,7 @@ import { Icon } from "./icons";
 const EASE_OUT = [0.23, 1, 0.32, 1] as const;
 const EASE_DRAWER = [0.32, 0.72, 0, 1] as const;
 
-/* ═══════════════ Panel lateral (editar contenido, ver un reporte en el celular) ═══════════════ */
+/* ═══════════════ Panel lateral (ver un reporte en el celular) ═══════════════ */
 
 export function Drawer({
   open,

@@ -10,7 +10,7 @@ import type { SortState } from "@/components/ui/DataTable";
  *     });
  *   export const useUsers = (...) => useQuery(usersQuery(...));
  *
- * Keys start with the area ("tracking" | "moderation" | "content"), then the resource, then every input that
+ * Keys start with the area ("tracking" | "moderation"), then the resource, then every input that
  * changes the result. Mutations invalidate by prefix.
  */
 

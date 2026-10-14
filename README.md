@@ -1,8 +1,7 @@
 # Over It · Back Office
 
-Internal tool for the Over It team: **Trackeo** (downloads, onboarding, subscriptions, users, app usage),
-**Moderación** (community, reports, Ninety, audit log) and **Contenido** (daily challenges, breathing exercises,
-articles, phrases, facts). Talks to `OverIt-Backend` through its `/api/dashboard/*` and back office endpoints.
+Internal tool for the Over It team: **Trackeo** (downloads, onboarding, subscriptions, users, app usage)
+and **Moderación** (community, reports, Ninety, audit log). Talks to `OverIt-Backend` through its `/api/dashboard/*` and back office endpoints.
 
 Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 · TanStack Query v5 · ESLint · Prettier.
 
@@ -98,7 +97,7 @@ src/
     globals.css              Tailwind v4 + design tokens (@theme) + utilities (press, skeleton, tnum…)
     login/                   Admin login
     (app)/                   Authenticated area (AuthGate + AppShell)
-      tracking/ moderation/ content/   One folder per section
+      tracking/ moderation/   One folder per section
   components/
     AuthProvider.tsx         Session (cookie) + QueryClient + toasts; useAuth, useRequireAdmin
     Logo.tsx                 Wordmark and the brand star pattern

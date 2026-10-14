@@ -39,7 +39,6 @@ type Emotion = "MELANCHOLY" | "ANGER" | "NEUTRAL" | "SADNESS" | "HAPPINESS";
 //  expired            = no access, lapsed without an explicit cancel (billing issue, etc.)
 //  none               = never purchased (complimentary grants are reported separately)
 type SubscriptionBucket = "renews" | "canceledWithAccess" | "canceled" | "expired" | "none";
-type ContentStatus = "Published" | "Draft";
 ```
 
 ---
@@ -416,91 +415,10 @@ type AuditEntry = {
 
 ---
 
-## 6. Content
-
-Five collections. All share: `GET` list (includes drafts), `GET /{id}`, `POST` create → `{ id }`,
-`PUT /{id}` full update → `204`, `DELETE /{id}` → `204`, `PUT /order` → `204`.
-The app only sees `Published` items. List query: `language` (required, `es` or `en`), `status`
-(`Published`|`Draft`), `search`. Lists are **not paged** (ordered by `sortOrder`).
-
-`PUT /order` body: `{ language: string; ids: string[] }` — the full ordered list of ids for that
-language; `sortOrder` becomes the index (0-based).
-
-Common fields on every item: `id`, `language` (`"es" | "en"`), `status: ContentStatus`,
-`sortOrder: number`, `updatedAt: string | null`.
-
-### Challenges — `/api/backoffice/content/challenges`
-
-```ts
-type Challenge = Common & {
-  title: string; action: string; type: "InApp" | "External";
-  inputDefinitions: { key: string; label: string }[] | null;  // 1..5 for InApp
-  day: number | null;      // position among PUBLISHED in sortOrder (1-based); null for drafts
-  activeUsersToday: number; // users whose current plan day equals `day`
-};
-type ChallengeInput = { title: string; action: string; type: "InApp" | "External";
-  inputDefinitions?: { key?: string; label: string }[]; language: string; status?: ContentStatus;
-  position?: number };     // create only: 0-based index to insert at (default: end)
-```
-
-`day` is recomputed on every create/update/delete/reorder so published challenges are
-always days 1..N without gaps. `DELETE` returns `409 DASHBOARD_CHALLENGE_IN_USE` when users
-already have it assigned — switch it to `Draft` instead.
-
-### Breathings — `/api/backoffice/content/breathings`
-
-```ts
-type Breathing = Common & { title: string; description: string; type: "Relax" | "Sleep" | "Crisis";
-  cicle: { action: "Inhale" | "Hold" | "Exhale"; durationInSeconds: number }[] };
-type BreathingInput = Omit<Breathing, "id" | "sortOrder" | "updatedAt" | "status" | "language"> & { language: string; status?: ContentStatus };
-```
-
-### Resources (articles & tips) — `/api/backoffice/content/resources`
-
-```ts
-type Resource = Common & {
-  titleParts: { text: string; variant: "Default" | "Highlighted" }[];
-  description: string; content: string;       // content is the article body as stored (markdown-ish text)
-  category: "Duel" | "Anxiety" | "SelfEsteem" | "Bonds" | "Science" | "NewHorizons";
-  type: "Article" | "Tip";
-  reads: number;
-};
-```
-List also accepts `type` and `category` filters.
-
-### Phrases — `/api/backoffice/content/phrases`
-
-```ts
-type Phrase = Common & { parts: { text: string; variant: "Default" | "Highlighted" }[]; author: string | null; favorites: number };
-```
-
-### Scientific facts — `/api/backoffice/content/scientific-facts`
-
-```ts
-type ScientificFact = Common & { text: string };
-```
-
-Inputs for resources/phrases/facts are the item fields minus `id`, `sortOrder`, `updatedAt`
-and computed counts; `language` is required on create, `status` is optional (default `Published`).
-
-Rules for every collection:
-
-- `POST` → `200 { id: string }`. `PUT` → `204`. `DELETE` → `204`.
-- `language` is required on `POST` (400 without it), fixed at creation and ignored on `PUT`. `status` omitted on `PUT` keeps the
-  current one. `position` only applies to `POST` (use `/order` to move things).
-- A list without `language` → `400`. `PUT /order` → `400 DASHBOARD_REORDER_MISMATCH` unless `ids` is exactly every item of that language.
-- Validation (400): challenge `title` 1..200, `action` 1..1000, `InApp` needs 1..5
-  `inputDefinitions` with a label (missing `key`s become `field1`..`field5`; `External` stores none);
-  breathing needs `title`, `description` and ≥1 step of 1..600 s; resource needs `titleParts`
-  (each with text), `description`, `content`; phrase needs `parts` (each with text), `author` ≤200;
-  fact needs `text` ≤2000; `language` must be 2 letters.
-- `search` is case-insensitive and also matches the text inside `titleParts` / `parts`.
-
-### Removed from the mobile API
+## 6. Removed from the mobile API
 
 `POST`/`DELETE` on `/api/challenges`, `/api/breathings`, `/api/resources`, `/api/phrases`,
-`/api/scientific-facts` (they were behind the paywall policy and unused by the app). Use the
-backoffice endpoints above.
+`/api/scientific-facts` (they were behind the paywall policy and unused by the app).
 
 ---
 
