@@ -29,30 +29,11 @@ export const RANGES: { id: RangeId; label: string; days: number | null }[] = [
 ];
 
 export const LANGS: Record<Lang, string> = { es: "Español", en: "English" };
+export const langName = (l: string) => LANGS[l as Lang] ?? l;
 
-/* Countries offered in the filter (the app's markets). Replace with a server list when one exists. */
-export const COUNTRIES: { code: string; name: string }[] = [
-  { code: "AR", name: "Argentina" },
-  { code: "MX", name: "México" },
-  { code: "ES", name: "España" },
-  { code: "CO", name: "Colombia" },
-  { code: "CL", name: "Chile" },
-  { code: "US", name: "Estados Unidos" },
-  { code: "PE", name: "Perú" },
-  { code: "UY", name: "Uruguay" },
-  { code: "EC", name: "Ecuador" },
-  { code: "VE", name: "Venezuela" },
-  { code: "DO", name: "República Dominicana" },
-  { code: "PY", name: "Paraguay" },
-  { code: "CR", name: "Costa Rica" },
-  { code: "GT", name: "Guatemala" },
-  { code: "BO", name: "Bolivia" },
-  { code: "PA", name: "Panamá" },
-  { code: "PR", name: "Puerto Rico" },
-  { code: "SV", name: "El Salvador" },
-  { code: "HN", name: "Honduras" },
-];
-export const countryName = (code: string) => COUNTRIES.find((c) => c.code === code)?.name ?? code;
+/* Country names in Spanish from the ISO code (the filter lists the countries the server has users in). */
+const REGIONS = new Intl.DisplayNames(["es"], { type: "region" });
+export const countryName = (code: string) => (/^[A-Z]{2}$/.test(code) ? (REGIONS.of(code) ?? code) : code);
 
 const PARAM = { range: "period", country: "country", lang: "language" } as const;
 

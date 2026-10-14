@@ -20,6 +20,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, describeError } from "@/lib/api";
 import { cx } from "@/lib/cx";
+import { countryName, langName } from "@/lib/filters";
 import { ago, dateTime, dayLong, dayShort, n, plural, secs } from "@/lib/format";
 import {
   dayKey,
@@ -159,6 +160,8 @@ export function UserProfile({ id }: { id: string }) {
                 {[u.age ? `${u.age} años` : null, u.gender ? GENDER_LABEL[u.gender] : null].filter(Boolean).join(" · ")}
               </Tag>
             )}
+            {u.country && <Tag icon={<Icon.globe size={13} />}>{countryName(u.country)}</Tag>}
+            {u.language && <Tag icon={<Icon.chat size={13} />}>{langName(u.language)}</Tag>}
             {u.lastDevice && <Tag icon={<Icon.phone size={13} />}>{u.lastDevice}</Tag>}
             {u.feedbackCount > 0 && (
               <Tag icon={<Icon.inbox size={13} />}>

@@ -6,10 +6,11 @@ import { Select } from "@/components/ui/Select";
 import { Segmented } from "@/components/ui/Tabs";
 import { Icon } from "@/components/ui/icons";
 import { cx } from "@/lib/cx";
-import { COUNTRIES, LANGS, RANGES, useTrackingFilters, type Lang, type RangeId } from "@/lib/filters";
+import { countryName, LANGS, RANGES, useTrackingFilters, type Lang, type RangeId } from "@/lib/filters";
 import { n } from "@/lib/format";
+import { useCountries } from "@/lib/tracking/queries";
 
-/** Downloads per option, shown next to each choice when the page has them. */
+/** Downloads per option, shown next to each choice when the page has them (countries default to all-time users). */
 export interface FilterCounts {
   total?: number;
   byCountry?: Record<string, number>;
@@ -45,6 +46,7 @@ export function FilterBar({
   const [q, setQ] = useState("");
   const sentinel = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
+  const countries = useCountries(country).data ?? [];
 
   useEffect(() => {
     const el = sentinel.current;
@@ -58,8 +60,12 @@ export function FilterBar({
 
   const fmt = (v: number | undefined) => (v === undefined ? undefined : n(v));
   const rangeLabel = RANGES.find((r) => r.id === f.range)!.label;
-  const countryLabel =
-    f.country === "all" ? "Todos los países" : (COUNTRIES.find((c) => c.code === f.country)?.name ?? f.country);
+  const countryLabel = f.country === "all" ? "Todos los países" : countryName(f.country);
+  const countryOptions = countries.map((c) => ({
+    code: c.country,
+    name: countryName(c.country),
+    count: counts?.byCountry?.[c.country] ?? c.users,
+  }));
   const langLabel = f.lang === "all" ? "Todos los idiomas" : LANGS[f.lang];
   const active = (f.country !== "all" ? 1 : 0) + (f.lang !== "all" ? 1 : 0);
   const shownTotal =
@@ -99,10 +105,10 @@ export function FilterBar({
                   icon: <Icon.globe size={17} />,
                   divider: true,
                 },
-                ...COUNTRIES.map((c) => ({
+                ...countryOptions.map((c) => ({
                   id: c.code,
                   label: c.name,
-                  hint: fmt(counts?.byCountry?.[c.code]),
+                  hint: fmt(c.count),
                   icon: <Code c={c.code} />,
                 })),
               ]}
@@ -228,11 +234,10 @@ export function FilterBar({
               role="radiogroup"
               aria-label="País"
             >
-              {[{ code: "all", name: "Todos los países" }, ...COUNTRIES]
+              {[{ code: "all", name: "Todos los países", count: counts?.total }, ...countryOptions]
                 .filter((c) => !q.trim() || norm(c.name).includes(norm(q.trim())))
                 .map((c) => {
                   const on = f.country === c.code;
-                  const count = c.code === "all" ? counts?.total : counts?.byCountry?.[c.code];
                   return (
                     <li key={c.code} className="border-b border-bo-line last:border-0">
                       <button
@@ -254,8 +259,8 @@ export function FilterBar({
                         >
                           {c.name}
                         </span>
-                        {count !== undefined && (
-                          <span className="text-[12.5px] font-bold text-ink-60 tnum">{n(count)}</span>
+                        {c.count !== undefined && (
+                          <span className="text-[12.5px] font-bold text-ink-60 tnum">{n(c.count)}</span>
                         )}
                         <span className="flex w-[18px] justify-end text-purple">
                           {on && <Icon.check size={17} strokeWidth={2.6} />}

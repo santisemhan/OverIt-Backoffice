@@ -35,6 +35,8 @@ export interface UserListItem {
   createdAt: string | null;
   lastLogin: string;
   lastDevice: string | null;
+  country: string | null;
+  language: string | null;
   providers: Provider[];
   subscription: {
     bucket: SubscriptionBucket;
@@ -69,6 +71,8 @@ export interface UserDetail {
   createdAt: string | null;
   lastLogin: string;
   lastDevice: string | null;
+  country: string | null;
+  language: string | null;
   providers: Provider[];
   onboarding: null | {
     answers: Record<string, string[]>;
@@ -184,11 +188,29 @@ export interface Overview {
   breakdowns: {
     gender: { key: Gender | "UNKNOWN"; users: number; subscribed: number }[];
     age: { key: AgeKey; users: number; subscribed: number }[];
-    language: null;
-    country: null;
+    language: { key: string; users: number; subscribed: number }[];
+    country: { key: string; users: number; subscribed: number }[];
   };
   onboardingAnswers: { question: string; answered: number; options: { answer: string; count: number }[] }[];
   breakupMotives: { answer: string; count: number }[];
+}
+
+export interface CountryUsers {
+  country: string;
+  users: number;
+}
+
+/** Per-screen onboarding funnel: installs (anonymous before "plan"), screens unordered. */
+export interface OnboardingFunnel {
+  devices: number;
+  screens: {
+    screen: string;
+    reached: number;
+    skipped: number;
+    left: number;
+    leftWithAccount: number;
+    medianSeconds: number | null;
+  }[];
 }
 
 export interface SubscriptionsMetrics {

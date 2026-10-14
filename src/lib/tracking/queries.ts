@@ -1,9 +1,11 @@
 import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { RangeId } from "@/lib/filters";
+import type { RangeId, TrackingFilters } from "@/lib/filters";
 import { listQuery, type ListParams } from "@/lib/queries";
 import type {
+  CountryUsers,
   OnboardingFilter,
+  OnboardingFunnel,
   Overview,
   Paged,
   SubscriptionFilter,
@@ -14,8 +16,8 @@ import type {
 } from "./types";
 
 /*
- * Tracking read hooks (docs/API.md §1–2). Keys: ["tracking", resource, ...inputs]. Metrics only take `range`: the
- * backend does not store country or app language, so those filters are not sent.
+ * Tracking read hooks (docs/API.md §1–2). Keys: ["tracking", resource, ...inputs]. Overview and onboarding take the
+ * country and language filters too; the other metrics only take `range`.
  */
 
 export interface UserListFilters {
@@ -24,6 +26,10 @@ export interface UserListFilters {
   subscription: SubscriptionFilter | null;
   /** Onboarding answer filter: users whose answer to `question` includes `answer`. */
   answer?: { question: string; answer: string } | null;
+  country?: string | null;
+  language?: string | null;
+  /** People with an account whose onboarding stopped on this screen. */
+  leftAt?: string | null;
 }
 
 export const usersQueryParams = (f: UserListFilters, list: ListParams) => ({
@@ -32,6 +38,9 @@ export const usersQueryParams = (f: UserListFilters, list: ListParams) => ({
   subscription: f.subscription ?? undefined,
   question: f.answer?.question,
   answer: f.answer?.answer,
+  country: f.country ?? undefined,
+  language: f.language ?? undefined,
+  leftAt: f.leftAt ?? undefined,
   ...listQuery(list),
 });
 
@@ -52,12 +61,35 @@ export const userQuery = (id: string) =>
 /* No placeholder: while another person loads, never show the previous one. */
 export const useUser = (id: string) => useQuery({ ...userQuery(id), placeholderData: undefined });
 
-export const overviewQuery = (range: RangeId) =>
+export const countriesQuery = () =>
   queryOptions({
-    queryKey: ["tracking", "overview", range],
-    queryFn: ({ signal }) => api<Overview>("/api/backoffice/metrics/overview", { query: { range }, signal }),
+    queryKey: ["tracking", "countries"],
+    queryFn: ({ signal }) => api<CountryUsers[]>("/api/backoffice/users/countries", { signal }),
+    staleTime: 5 * 60_000,
   });
-export const useOverview = (range: RangeId) => useQuery({ ...overviewQuery(range), placeholderData: keepPreviousData });
+export const useCountries = (enabled = true) => useQuery({ ...countriesQuery(), enabled });
+
+const metricsParams = (f: TrackingFilters) => ({
+  range: f.range,
+  country: f.country === "all" ? undefined : f.country,
+  language: f.lang === "all" ? undefined : f.lang,
+});
+
+export const overviewQuery = (f: TrackingFilters) =>
+  queryOptions({
+    queryKey: ["tracking", "overview", f],
+    queryFn: ({ signal }) => api<Overview>("/api/backoffice/metrics/overview", { query: metricsParams(f), signal }),
+  });
+export const useOverview = (f: TrackingFilters) => useQuery({ ...overviewQuery(f), placeholderData: keepPreviousData });
+
+export const onboardingFunnelQuery = (f: TrackingFilters) =>
+  queryOptions({
+    queryKey: ["tracking", "onboarding", f],
+    queryFn: ({ signal }) =>
+      api<OnboardingFunnel>("/api/backoffice/metrics/onboarding", { query: metricsParams(f), signal }),
+  });
+export const useOnboardingFunnel = (f: TrackingFilters) =>
+  useQuery({ ...onboardingFunnelQuery(f), placeholderData: keepPreviousData });
 
 export const subscriptionsMetricsQuery = (range: RangeId) =>
   queryOptions({
