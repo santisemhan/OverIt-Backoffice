@@ -47,7 +47,7 @@ const VIEWS: View[] = [
 const REASONS_PAGE_SIZE = 10;
 
 const VIEW_COPY: Record<View, { title: string; sub: string; desc: boolean }> = {
-  any: { title: "Todas", sub: "Todos los que compraron alguna vez o tienen acceso de cortesía.", desc: false },
+  any: { title: "Todas", sub: "Todos los que compraron alguna vez. Las cortesías están aparte.", desc: false },
   active: { title: "Activas", sub: "Con acceso pago hoy: renuevan o cancelaron pero siguen con acceso.", desc: false },
   renews: { title: "Renuevan", sub: "Ordenadas por la próxima renovación.", desc: false },
   renewsThisWeek: { title: "Renuevan esta semana", sub: "Se les cobra en los próximos 7 días.", desc: false },
