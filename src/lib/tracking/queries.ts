@@ -33,6 +33,8 @@ export interface UserListFilters {
   language?: string | null;
   /** People with an account whose onboarding stopped on this screen. */
   leftAt?: string | null;
+  /** Only accounts created since launch, as the tracking numbers count them. */
+  launched?: boolean;
 }
 
 export const usersQueryParams = (f: UserListFilters, list: ListParams) => ({
@@ -44,6 +46,7 @@ export const usersQueryParams = (f: UserListFilters, list: ListParams) => ({
   country: f.country ?? undefined,
   language: f.language ?? undefined,
   leftAt: f.leftAt ?? undefined,
+  launched: f.launched || undefined,
   ...listQuery(list),
 });
 

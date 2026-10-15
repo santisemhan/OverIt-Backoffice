@@ -98,7 +98,7 @@ export function Subscriptions() {
 
   const listSort = sort ?? { key: "expiresAt", desc: VIEW_COPY[view].desc };
   const list = useUsers(
-    { search, onboarding: null, subscription: view },
+    { search, onboarding: null, subscription: view, launched: true },
     { page, pageSize: DEFAULT_PAGE_SIZE, sort: listSort },
   );
   const [now] = useState(() => Date.now());
@@ -120,6 +120,7 @@ export function Subscriptions() {
 
   const c = d.counts;
   const count: Partial<Record<View, number>> = {
+    any: c.total,
     active: c.renews + c.canceledWithAccess,
     renews: c.renews,
     renewsThisWeek: c.renewsThisWeek,

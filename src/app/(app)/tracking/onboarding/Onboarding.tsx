@@ -600,6 +600,7 @@ function StepDetail({
       onboarding: null,
       subscription: null,
       leftAt: step.id,
+      launched: true,
       country: filters.country === "all" ? null : filters.country,
       language: filters.lang === "all" ? null : filters.lang,
     },
