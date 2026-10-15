@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PageSkeleton } from "@/components/ui/Skeleton";
 import { Num } from "@/components/ui/Stat";
 import { Segmented } from "@/components/ui/Tabs";
-import { Columns, SERIES, TimeChart, WithTable } from "@/components/ui/charts";
+import { Columns, Heatmap, SERIES, TimeChart, WithTable } from "@/components/ui/charts";
 import { Icon } from "@/components/ui/icons";
 import { describeError } from "@/lib/api";
 import { useTrackingFilters } from "@/lib/filters";
@@ -28,6 +28,7 @@ import { ago } from "@/lib/format";
  */
 
 const hh = (h: number) => `${String(h).padStart(2, "0")} h`;
+const WEEKDAYS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábados", "domingos"];
 const TOP_PAGE_SIZE = 10;
 
 export function NinetyView() {
@@ -110,10 +111,22 @@ export function NinetyView() {
 
   const msgs = d.perDay.map((x) => ({ t: Date.parse(x.date), v: x.userMessages }));
   const people = d.perDay.map((x) => ({ t: Date.parse(x.date), v: x.users }));
-  const hours = Array.from({ length: 24 }, (_, h) => d.perHour.find((x) => x.hour === h)?.userMessages ?? 0);
+  /* Weekday × hour in each person's local time; older backends only send the hour in UTC. */
+  const grid = d.perWeekdayHour
+    ? Array.from({ length: 7 }, (_, wd) =>
+        Array.from(
+          { length: 24 },
+          (_, h) => d.perWeekdayHour!.find((x) => x.weekday === wd && x.hour === h)?.userMessages ?? 0,
+        ),
+      )
+    : null;
+  const hours = grid
+    ? Array.from({ length: 24 }, (_, h) => grid.reduce((a, row) => a + row[h], 0))
+    : Array.from({ length: 24 }, (_, h) => d.perHour.find((x) => x.hour === h)?.userMessages ?? 0);
   const hourTotal = hours.reduce((a, b) => a + b, 0);
   const peak = hours.reduce((best, v, h) => (v > hours[best] ? h : best), 0);
   const night = hours.slice(20).reduce((a, b) => a + b, 0) + hours.slice(0, 4).reduce((a, b) => a + b, 0);
+  const peakCell = grid?.flatMap((row, wd) => row.map((v, h) => ({ wd, h, v }))).reduce((a, b) => (b.v > a.v ? b : a));
 
   return (
     <>
@@ -196,21 +209,35 @@ export function NinetyView() {
       </Panel>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        <Panel
-          title="A qué hora le escriben"
-          sub={
-            hourTotal
-              ? `El pico es a las ${hh(peak)} (UTC). ${n(Math.round((night / hourTotal) * 100))}% de noche (20 a 4 h).`
-              : "Hora UTC."
-          }
-        >
-          <Columns
-            ariaLabel="Mensajes por hora del día (UTC)"
-            valueLabel="mensajes"
-            data={hours.map((v, h) => ({ key: String(h), label: hh(h), v }))}
-            labelEvery={3}
-          />
-        </Panel>
+        {grid ? (
+          <Panel
+            title="Cuándo le escriben"
+            info="Hora local de cada persona (la que informa su celular; UTC si nunca la mandó)."
+            sub={
+              peakCell?.v
+                ? `El pico es los ${WEEKDAYS[peakCell.wd]} a las ${hh(peakCell.h)}. ${n(Math.round((night / hourTotal) * 100))}% de noche (20 a 4 h).`
+                : undefined
+            }
+          >
+            <Heatmap grid={grid} valueLabel="mensajes" />
+          </Panel>
+        ) : (
+          <Panel
+            title="A qué hora le escriben"
+            sub={
+              hourTotal
+                ? `El pico es a las ${hh(peak)} (UTC). ${n(Math.round((night / hourTotal) * 100))}% de noche (20 a 4 h).`
+                : "Hora UTC."
+            }
+          >
+            <Columns
+              ariaLabel="Mensajes por hora del día (UTC)"
+              valueLabel="mensajes"
+              data={hours.map((v, h) => ({ key: String(h), label: hh(h), v }))}
+              labelEvery={3}
+            />
+          </Panel>
+        )}
         <Panel
           pad={false}
           title="Quiénes más le escriben"

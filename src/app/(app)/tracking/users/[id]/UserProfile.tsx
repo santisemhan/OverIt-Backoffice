@@ -107,7 +107,7 @@ export function UserProfile({ id }: { id: string }) {
   const [renaming, setRenaming] = useState(false);
 
   const asked = params.get("tab") as TabId | null;
-  const tab: TabId = asked && TABS.includes(asked) ? asked : "onboarding";
+  const askedTab: TabId = asked && TABS.includes(asked) ? asked : "onboarding";
   const setTab = (t: TabId) => router.replace(`${pathname}?tab=${t}`, { scroll: false });
 
   const back = (
@@ -153,6 +153,18 @@ export function UserProfile({ id }: { id: string }) {
   const band = { bg: "#EFEEFC", deep: "#E1E0FA" };
   const chatTotal = u.chat.userMessages + u.chat.assistantMessages;
   const communityTotal = u.community.posts + u.community.comments;
+  /* Without paying (or a courtesy grant) the app stays locked: those tabs can only be empty. */
+  const noApp = u.status !== "ACTIVE" && !u.hasAccess && !u.plan;
+  const disabled: Record<TabId, boolean> = {
+    onboarding: false,
+    progress: noApp && !u.emotions.length && !u.challenges.length,
+    resources: noApp && !u.resourceReads.length,
+    ninety: noApp && !chatTotal,
+    /* Always open: the courtesy access is granted from there. */
+    subscription: false,
+    community: noApp && !communityTotal,
+  };
+  const tab: TabId = disabled[askedTab] ? "onboarding" : askedTab;
 
   return (
     <>
@@ -239,11 +251,21 @@ export function UserProfile({ id }: { id: string }) {
           onChange={setTab}
           items={[
             { id: "onboarding", label: "Onboarding" },
-            { id: "progress", label: "Progreso" },
-            { id: "resources", label: "Recursos", count: u.resourceReads.length || undefined },
-            { id: "ninety", label: "Ninety", count: u.chat.userMessages || undefined },
-            { id: "subscription", label: "Suscripción" },
-            { id: "community", label: "Comunidad", count: communityTotal || undefined },
+            { id: "progress", label: "Progreso", disabled: disabled.progress },
+            {
+              id: "resources",
+              label: "Recursos",
+              count: u.resourceReads.length || undefined,
+              disabled: disabled.resources,
+            },
+            { id: "ninety", label: "Ninety", count: u.chat.userMessages || undefined, disabled: disabled.ninety },
+            { id: "subscription", label: "Suscripción", disabled: disabled.subscription },
+            {
+              id: "community",
+              label: "Comunidad",
+              count: communityTotal || undefined,
+              disabled: disabled.community,
+            },
           ]}
         />
       </div>
@@ -369,9 +391,12 @@ function OnboardingTab({ u }: { u: UserDetail }) {
   const o = u.onboarding;
   if (!o)
     return (
-      <Panel>
-        <EmptyState compact icon={<Icon.chat size={22} />} title="No respondió el onboarding" />
-      </Panel>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <Panel>
+          <EmptyState compact icon={<Icon.chat size={22} />} title="No respondió el onboarding" />
+        </Panel>
+        <PersonalData u={u} />
+      </div>
     );
   const answers = sortQuestions(
     Object.entries(o.answers).map(([question, values]) => ({ question: questionKey(question), values })),
@@ -403,6 +428,7 @@ function OnboardingTab({ u }: { u: UserDetail }) {
         )}
       </Panel>
       <div className="grid content-start gap-5">
+        <PersonalData u={u} />
         <Panel title="Por qué terminó">
           {o.breakupMotives.length ? (
             <div className="flex flex-wrap gap-1.5">
@@ -439,6 +465,51 @@ function OnboardingTab({ u }: { u: UserDetail }) {
           </dl>
         </Panel>
       </div>
+    </div>
+  );
+}
+
+/* Sus datos: what the person told us about themselves and how far the sign-up flow went. */
+function PersonalData({ u }: { u: UserDetail }) {
+  const s = u.subscription;
+  const paywall = s
+    ? `Compró ${s.productId ?? "una suscripción"}`
+    : u.status === "PENDING_ONBOARDING"
+      ? "No llegó"
+      : "No compró";
+  return (
+    <Panel title="Sus datos">
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5">
+        <Item label="Nombre" value={u.name ?? "—"} />
+        <Item label="Edad" value={u.age ? `${u.age} años` : "—"} />
+        <Item label="Género" value={u.gender ? GENDER_LABEL[u.gender] : "—"} />
+        <Item
+          label="Registro"
+          value={
+            u.providers.length ? u.providers.map((p) => (p === "APPLE" ? "Con Apple" : "Con Google")).join(" y ") : "—"
+          }
+        />
+        <Item label="País" value={u.country ? countryName(u.country) : "—"} />
+        <Item label="Idioma" value={u.language ? langName(u.language) : "—"} />
+        {u.referralCode !== undefined && <Item label="Código de referido" value={u.referralCode ?? "Sin código"} />}
+        {u.pushNotifications !== undefined && (
+          <Item
+            label="Notificaciones"
+            value={u.pushNotifications === null ? "—" : u.pushNotifications ? "Permitió" : "No permitió"}
+          />
+        )}
+        <Item label="Contacto Cero" value={u.onboarding?.commitmentSignedAt ? "Selló el compromiso" : "—"} />
+        <Item label="Paywall" value={paywall} />
+      </dl>
+    </Panel>
+  );
+}
+
+function Item({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[12px] font-bold text-ink-60">{label}</dt>
+      <dd className="mt-0.5 truncate text-[14px] font-bold text-ink">{value}</dd>
     </div>
   );
 }
