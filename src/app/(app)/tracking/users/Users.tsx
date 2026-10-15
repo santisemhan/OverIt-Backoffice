@@ -286,7 +286,7 @@ export function Users() {
               setSort(s);
               setPage(1);
             }}
-            onRowClick={(u) => router.push(`/tracking/users/${u.id}`)}
+            rowHref={(u) => `/tracking/users/${u.id}`}
             loading={users.isPending}
             stickyFirstColumn
             empty={

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { cx } from "@/lib/cx";
 import { n } from "@/lib/format";
 import { Button } from "./Button";
@@ -90,6 +91,7 @@ export function DataTable<T>({
   sort,
   onSort,
   onRowClick,
+  rowHref,
   loading = false,
   empty,
   stickyFirstColumn = false,
@@ -105,6 +107,8 @@ export function DataTable<T>({
   sort?: SortState | null;
   onSort?: (sort: SortState) => void;
   onRowClick?: (row: T) => void;
+  /** Makes every cell a real link, so the row opens in a new tab with a middle click or the context menu. Cells must not hold links or buttons. */
+  rowHref?: (row: T) => string;
   /** Shows skeleton rows when there is nothing to show yet. */
   loading?: boolean;
   /** Rendered instead of the body when there are no rows (usually an <EmptyState />). */
@@ -180,24 +184,36 @@ export function DataTable<T>({
                       }
                       className={cx(
                         "group/row border-b border-bo-line last:border-0",
-                        onRowClick && "cursor-pointer hover:bg-bo-soft",
+                        (onRowClick || rowHref) && "cursor-pointer hover:bg-bo-soft",
                       )}
                     >
-                      {columns.map((c, i) => (
-                        <td
-                          key={c.key}
-                          className={cx(
-                            "px-3 py-2.5 text-[13px] font-medium text-ink-70",
-                            c.align === "right" && "text-right tnum",
-                            i === 0 && "pl-5",
-                            i === columns.length - 1 && "pr-5",
-                            i === 0 && stickyFirstColumn && cx(STICKY, "bg-white group-hover/row:bg-bo-soft"),
-                            c.className,
-                          )}
-                        >
-                          {c.cell(row)}
-                        </td>
-                      ))}
+                      {columns.map((c, i) => {
+                        const pad = cx("px-3 py-2.5", i === 0 && "pl-5", i === columns.length - 1 && "pr-5");
+                        return (
+                          <td
+                            key={c.key}
+                            className={cx(
+                              "text-[13px] font-medium text-ink-70",
+                              !rowHref && pad,
+                              c.align === "right" && "text-right tnum",
+                              i === 0 && stickyFirstColumn && cx(STICKY, "bg-white group-hover/row:bg-bo-soft"),
+                              c.className,
+                            )}
+                          >
+                            {rowHref ? (
+                              <Link
+                                href={rowHref(row)}
+                                tabIndex={i === 0 ? undefined : -1}
+                                className={cx("block", pad)}
+                              >
+                                {c.cell(row)}
+                              </Link>
+                            ) : (
+                              c.cell(row)
+                            )}
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
             </tbody>
