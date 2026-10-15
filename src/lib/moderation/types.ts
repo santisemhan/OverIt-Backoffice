@@ -101,6 +101,8 @@ export interface NinetyMetrics {
   };
   perDay: { date: string; userMessages: number; users: number }[];
   perHour: { hour: number; userMessages: number }[];
+  /** Weekday (0 = Monday) × hour in each user's local time; older backends leave it out. */
+  perWeekdayHour?: { weekday: number; hour: number; userMessages: number }[];
 }
 
 export interface NinetyTopUser {

@@ -87,6 +87,10 @@ export interface UserDetail {
   country: string | null;
   language: string | null;
   providers: Provider[];
+  /** Influencer code the user applied (older backends leave it out). */
+  referralCode?: string | null;
+  /** Active push token: true; every token disabled: false; never registered: null. */
+  pushNotifications?: boolean | null;
   onboarding: null | {
     answers: Record<string, string[]>;
     exName: string | null;
@@ -189,6 +193,14 @@ export interface UserPayment {
 
 export type AgeKey = "<18" | "18-24" | "25-34" | "35-44" | "45-54" | "55+" | "UNKNOWN";
 
+/** `completed` = finished the first onboarding (older backends leave it out). */
+export interface BreakdownRow<K extends string = string> {
+  key: K;
+  users: number;
+  completed?: number;
+  subscribed: number;
+}
+
 export interface Overview {
   range: MetricsRange;
   from: string | null;
@@ -199,10 +211,13 @@ export interface Overview {
   mrrEstimate: MrrEstimate | null;
   collected: Collected;
   breakdowns: {
-    gender: { key: Gender | "UNKNOWN"; users: number; subscribed: number }[];
-    age: { key: AgeKey; users: number; subscribed: number }[];
-    language: { key: string; users: number; subscribed: number }[];
-    country: { key: string; users: number; subscribed: number }[];
+    gender: BreakdownRow<Gender | "UNKNOWN">[];
+    age: BreakdownRow<AgeKey>[];
+    /** Narrower ranges for people with a known age (older backends leave it out). */
+    ageRanges?: BreakdownRow[];
+    medianAge?: number | null;
+    language: BreakdownRow[];
+    country: BreakdownRow[];
   };
   onboardingAnswers: { question: string; answered: number; options: { answer: string; count: number }[] }[];
 }
