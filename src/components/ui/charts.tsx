@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
 import { Icon } from "./icons";
 import { compact, dayShort, dayWithWeekday, n as fmtN } from "@/lib/format";
@@ -964,53 +964,147 @@ export function DotMap({
     }
     return [...g.entries()];
   }, [dots]);
+  /* Zoom y arrastre: k = escala, x/y = corrimiento en px, siempre dentro del mapa */
+  const [view, setView] = useState({ k: 1, x: 0, y: 0 });
+  const drag = useRef<{ px: number; py: number; x: number; y: number; moved: boolean } | null>(null);
+  const moved = useRef(false);
+  const clamp = (k: number, x: number, y: number) => {
+    const kk = Math.min(8, Math.max(1, k));
+    return { k: kk, x: Math.min(0, Math.max(w - w * kk, x)), y: Math.min(0, Math.max(h - h * kk, y)) };
+  };
+  const zoomAt = (factor: number, px: number, py: number) =>
+    setView((v) => {
+      const k = Math.min(8, Math.max(1, v.k * factor));
+      const f = k / v.k;
+      return clamp(k, px - (px - v.x) * f, py - (py - v.y) * f);
+    });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w, h]);
   const focus = hover ?? selected ?? null;
   const center = useMemo(() => {
     if (!hover) return null;
     const list = groups.find(([k]) => k === hover)?.[1];
     if (!list?.length) return null;
     return {
-      x: (list.reduce((a, d) => a + d.c, 0) / list.length + 0.5) * pitch,
-      y: (Math.min(...list.map((d) => d.r)) + 0.5) * pitch,
+      x: (list.reduce((a, d) => a + d.c, 0) / list.length + 0.5) * pitch * view.k + view.x,
+      y: (Math.min(...list.map((d) => d.r)) + 0.5) * pitch * view.k + view.y,
     };
-  }, [hover, groups, pitch]);
+  }, [hover, groups, pitch, view]);
+  const zoomed = view.k > 1.001;
   return (
-    <div ref={ref} className="relative w-full select-none" style={{ height: h || 1 }}>
+    <div
+      ref={ref}
+      className={cx(
+        "relative w-full touch-none overflow-hidden select-none",
+        zoomed && "cursor-grab active:cursor-grabbing",
+      )}
+      style={{ height: h || 1 }}
+      onPointerDown={(e) => {
+        moved.current = false;
+        drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y, moved: false };
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        const dx = e.clientX - d.px;
+        const dy = e.clientY - d.py;
+        if (!d.moved && Math.hypot(dx, dy) < 4) return;
+        if (!d.moved) {
+          d.moved = moved.current = true;
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setHover(null);
+        }
+        setView((v) => clamp(v.k, d.x + dx, d.y + dy));
+      }}
+      onPointerUp={() => (drag.current = null)}
+      onPointerCancel={() => (drag.current = null)}
+      onDoubleClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        zoomAt(2, e.clientX - r.left, e.clientY - r.top);
+      }}
+    >
       {w > 0 && (
         <svg width={w} height={h} className="block" role="img" aria-label="Mapa de usuarios por país">
-          {groups.map(([id, list]) => {
-            const has = (values[id] ?? 0) > 0;
-            const dim = focus && focus !== id;
-            const d = list
-              .map(
-                (p) =>
-                  `M${(p.c + 0.5) * pitch - rad} ${(p.r + 0.5) * pitch}a${rad} ${rad} 0 1 0 ${rad * 2} 0a${rad} ${rad} 0 1 0 ${-rad * 2} 0`,
-              )
-              .join("");
-            return (
-              <g
-                key={id}
-                className={cx(has && onSelect && "cursor-pointer")}
-                onPointerEnter={() => has && setHover(id)}
-                onPointerLeave={() => setHover(null)}
-                onClick={() => has && onSelect?.(selected === id ? null : id)}
-              >
-                {has && (
+          <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
+            {groups.map(([id, list]) => {
+              const has = (values[id] ?? 0) > 0;
+              const dim = focus && focus !== id;
+              const d = list
+                .map(
+                  (p) =>
+                    `M${(p.c + 0.5) * pitch - rad} ${(p.r + 0.5) * pitch}a${rad} ${rad} 0 1 0 ${rad * 2} 0a${rad} ${rad} 0 1 0 ${-rad * 2} 0`,
+                )
+                .join("");
+              return (
+                <g
+                  key={id}
+                  className={cx(has && onSelect && "cursor-pointer")}
+                  onPointerEnter={() => has && setHover(id)}
+                  onPointerLeave={() => setHover(null)}
+                  onClick={() => !moved.current && has && onSelect?.(selected === id ? null : id)}
+                >
+                  {has && (
+                    <path
+                      d={list.map((p) => `M${p.c * pitch} ${p.r * pitch}h${pitch}v${pitch}h${-pitch}z`).join("")}
+                      fill="transparent"
+                    />
+                  )}
                   <path
-                    d={list.map((p) => `M${p.c * pitch} ${p.r * pitch}h${pitch}v${pitch}h${-pitch}z`).join("")}
-                    fill="transparent"
+                    d={d}
+                    fill={color(id)}
+                    fillOpacity={dim && has ? 0.4 : 1}
+                    className="transition-[fill-opacity] duration-150"
                   />
-                )}
-                <path
-                  d={d}
-                  fill={color(id)}
-                  fillOpacity={dim && has ? 0.4 : 1}
-                  className="transition-[fill-opacity] duration-150"
-                />
-              </g>
-            );
-          })}
+                </g>
+              );
+            })}
+          </g>
         </svg>
+      )}
+      {w > 0 && (
+        <div
+          className="absolute top-2 right-2 z-10 flex flex-col overflow-hidden rounded-[8px] bg-white text-[15px] leading-none font-bold text-ink-60 shadow-[0_0_0_1px_#ECE9E2,0_4px_10px_rgba(0,0,0,0.06)]"
+          onPointerDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            aria-label="Acercar"
+            className="h-7 w-7 hover:bg-black/5"
+            onClick={() => zoomAt(1.6, w / 2, h / 2)}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            aria-label="Alejar"
+            disabled={!zoomed}
+            className="h-7 w-7 border-t border-[#ECE9E2] hover:bg-black/5 disabled:opacity-40"
+            onClick={() => zoomAt(1 / 1.6, w / 2, h / 2)}
+          >
+            −
+          </button>
+          {zoomed && (
+            <button
+              type="button"
+              aria-label="Ver todo el mapa"
+              className="h-7 w-7 border-t border-[#ECE9E2] text-[13px] hover:bg-black/5"
+              onClick={() => setView({ k: 1, x: 0, y: 0 })}
+            >
+              ⟲
+            </button>
+          )}
+        </div>
       )}
       {hover && center && (
         <div

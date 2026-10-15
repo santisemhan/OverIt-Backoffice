@@ -4,7 +4,6 @@ import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import { Logo, Stars } from "@/components/Logo";
 import { useAuth } from "@/components/AuthProvider";
 import { Avatar } from "@/components/ui/Avatar";
@@ -25,7 +24,7 @@ function useSearchShortcut() {
 }
 
 /*
- * Desktop sidebar (and the content of the mobile drawer): a violet rail with the areas, settings and the account,
+ * Desktop sidebar (and the content of the mobile drawer): a violet rail with the areas and the account,
  * plus a white panel with the area name, search and its sections in collapsible groups.
  */
 export function Sidebar({
@@ -47,7 +46,6 @@ export function Sidebar({
 }) {
   const { session } = useAuth();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const badges = useNavBadges();
   const shortcut = useSearchShortcut();
   const area = AREA[areaId];
@@ -92,7 +90,6 @@ export function Sidebar({
                 onClick={() => openArea(a.id)}
                 aria-current={on ? "true" : undefined}
                 aria-label={dot ? `${a.label} (hay pendientes)` : a.label}
-                data-tip={onClose ? undefined : a.hint}
                 className="group flex w-[64px] press flex-col items-center gap-1 rounded-[14px] py-1"
               >
                 <span
@@ -126,27 +123,6 @@ export function Sidebar({
         </nav>
         <div className="flex-1" />
         <div className="relative flex flex-col items-center gap-2">
-          <Menu
-            label="Ajustes"
-            align="start"
-            trigger={<Icon.settings size={21} />}
-            triggerClassName="h-[42px] w-[42px] rounded-[14px] text-white hover:bg-white/14"
-            header={
-              <>
-                <p className="text-[13px] font-bold text-ink">Ajustes</p>
-                <p className="text-[12px] leading-[1.4] font-medium text-ink-60">
-                  Los datos se cargan del servidor de Over It.
-                </p>
-              </>
-            }
-            items={[
-              {
-                label: "Volver a cargar los datos",
-                icon: <Icon.rewind size={17} />,
-                onClick: () => void queryClient.invalidateQueries(),
-              },
-            ]}
-          />
           <Menu
             label="Tu cuenta"
             align="start"
