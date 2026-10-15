@@ -250,6 +250,7 @@ export interface SubscriptionsMetrics {
     canceled: number;
     expired: number;
     activeGrants: number;
+    total: number;
   };
   mrrEstimate: MrrEstimate | null;
   collected: Collected;
